@@ -80,7 +80,7 @@ export async function triageMessage(meta: GmailMessageMeta, userEmail: string): 
 }
 
 /** Rough per-message token estimate for budget checks before a run (state + four questions). */
-export const ESTIMATED_TOKENS_PER_MESSAGE = 900;
+export const ESTIMATED_TOKENS_PER_MESSAGE = 1200; // measured on 2026-09-25: 1,188 to 1,224 tokens per message with four questions
 export function estimateCostUsd(messages: number): number {
   return messages * ESTIMATED_TOKENS_PER_MESSAGE * USD_PER_INPUT_TOKEN;
 }

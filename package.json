@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "smoke:triage": "tsx --tsconfig tsconfig.json scripts/triage-smoke.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
