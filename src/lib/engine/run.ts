@@ -1,0 +1,236 @@
+import { and, eq, inArray } from "drizzle-orm";
+import { db, schema } from "@/db";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import { GmailAuthError, GmailClient, mapLimit, refreshAccessToken, type GmailMessageMeta } from "@/lib/gmail/client";
+import { ACTION_LABEL, AI_LABEL, LABEL_BY_CATEGORY, type CategoryId, type PolicyConfig } from "@/lib/policy/schema";
+import { ALL_TAXONOMY_LABELS, buildFilters, buildRules, resolveRule } from "@/lib/policy/rules";
+import { estimateCostUsd, triageMessage, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
+import type { AiUsage, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
+
+const { accounts, aiJudgments, mailboxes, runBatches, runs } = schema;
+
+export class MailboxError extends Error {}
+
+/** Build an authenticated Gmail client for a user, refreshing the access token from the encrypted refresh token. */
+export async function gmailFor(userId: string): Promise<{ gmail: GmailClient; email: string }> {
+  const [acct] = await db.select().from(accounts).where(and(eq(accounts.userId, userId), eq(accounts.provider, "google"))).limit(1);
+  if (!acct?.refresh_token) throw new GmailAuthError("No Google account with a refresh token is linked");
+  const now = Math.floor(Date.now() / 1000);
+  let accessToken = acct.access_token && acct.expires_at && acct.expires_at > now + 120 ? decryptSecret(acct.access_token) : null;
+  if (!accessToken) {
+    const fresh = await refreshAccessToken(decryptSecret(acct.refresh_token));
+    accessToken = fresh.accessToken;
+    await db.update(accounts).set({ access_token: encryptSecret(fresh.accessToken), expires_at: fresh.expiresAt })
+      .where(and(eq(accounts.provider, "google"), eq(accounts.providerAccountId, acct.providerAccountId)));
+  }
+  const gmail = new GmailClient(accessToken);
+  const [mb] = await db.select({ email: mailboxes.email }).from(mailboxes).where(eq(mailboxes.userId, userId)).limit(1);
+  return { gmail, email: mb?.email ?? "" };
+}
+
+type BatchRecord = { ruleId: string; messageIds: string[]; addLabelIds: string[]; removeLabelIds: string[]; restoreLabelIds: string[] };
+
+function sameFilter(existing: { criteria: Record<string, string> }, spec: { criteria: Record<string, string | undefined> }): boolean {
+  return (existing.criteria.from ?? "") === (spec.criteria.from ?? "") && (existing.criteria.subject ?? "") === (spec.criteria.subject ?? "") && (existing.criteria.query ?? "") === (spec.criteria.query ?? "");
+}
+
+/** Create the taxonomy labels and, in apply mode, the standing Gmail filters the policy wants. Returns label name -> id. */
+async function ensureSetup(gmail: GmailClient, policy: PolicyConfig, mode: RunMode): Promise<{ labels: Record<string, string>; filtersCreated: number }> {
+  const labels = await gmail.ensureLabels([...ALL_TAXONOMY_LABELS, ACTION_LABEL, AI_LABEL]);
+  let filtersCreated = 0;
+  if (mode === "apply") {
+    const existing = await gmail.listFilters();
+    for (const spec of buildFilters(policy)) {
+      if (existing.some((f) => sameFilter(f, spec))) continue;
+      const criteria: Record<string, string> = {};
+      if (spec.criteria.from) criteria.from = spec.criteria.from;
+      if (spec.criteria.subject) criteria.subject = spec.criteria.subject;
+      if (spec.criteria.query) criteria.query = spec.criteria.query;
+      await gmail.createFilter(criteria, {
+        addLabelIds: spec.action.addLabelNames.map((n) => labels[n] ?? n),
+        removeLabelIds: spec.action.removeLabelIds,
+      });
+      filtersCreated++;
+    }
+  }
+  return { labels, filtersCreated };
+}
+
+export async function runMailbox(opts: { userId: string; mode: RunMode; trigger: RunTrigger }): Promise<{ runId: string; summary: RunSummary }> {
+  const { userId, mode, trigger } = opts;
+  const started = Date.now();
+  const [mailbox] = await db.select().from(mailboxes).where(eq(mailboxes.userId, userId)).limit(1);
+  if (!mailbox) throw new MailboxError("Mailbox is not set up");
+  const policy = mailbox.policy;
+  const [run] = await db.insert(runs).values({ userId, mode, trigger }).returning({ id: runs.id });
+  const results: RuleResult[] = [];
+  const batches: BatchRecord[] = [];
+  let totalApplied = 0;
+
+  try {
+    const { gmail, email } = await gmailFor(userId);
+    const { labels, filtersCreated } = await ensureSetup(gmail, policy, mode);
+    if (filtersCreated) results.push({ id: "setup-filters", kind: "label", matched: filtersCreated, applied: filtersCreated });
+    if (!mailbox.labelsReady && mode === "apply") await db.update(mailboxes).set({ labelsReady: true }).where(eq(mailboxes.userId, userId));
+
+    // 1. Deterministic rules: free, exact, re-runnable by hand.
+    for (const raw of buildRules(policy)) {
+      const rule = resolveRule(raw, labels);
+      const entry: RuleResult = { id: rule.id, kind: rule.kind, query: rule.query, matched: 0, applied: 0 };
+      try {
+        const ids = await gmail.listMessageIds(rule.query);
+        entry.matched = ids.length;
+        if (rule.kind === "trash" && ids.length > policy.aging.maxTrashPerRule) {
+          entry.skipped = `matched ${ids.length} > maxTrashPerRule ${policy.aging.maxTrashPerRule}; refused`;
+        } else if (mode === "apply" && ids.length) {
+          await gmail.batchModify(ids, rule.addLabelIds, rule.removeLabelIds);
+          entry.applied = ids.length;
+          totalApplied += ids.length;
+          batches.push({
+            ruleId: rule.id, messageIds: ids, addLabelIds: rule.addLabelIds, removeLabelIds: rule.removeLabelIds,
+            restoreLabelIds: rule.query.includes("in:inbox") && rule.removeLabelIds.includes("INBOX") ? ["INBOX"] : [],
+          });
+        }
+      } catch (err) {
+        entry.error = err instanceof Error ? err.message : String(err);
+      }
+      results.push(entry);
+    }
+
+    // 2. TypeSafe triage of Primary mail the rules could not place.
+    let ai: RunSummary["ai"] | undefined;
+    if (policy.ai.enabled && process.env.TYPESAFE_API_KEY && policy.ai.maxMessagesPerRun > 0) {
+      ai = await triagePrimary({ gmail, email, userId, policy, labels, mode, batches });
+      totalApplied += ai.labeled + ai.archived + ai.flaggedAction;
+      results.push({ id: "ai-triage", kind: "ai", matched: ai.messagesConsidered, applied: ai.labeled + ai.archived + ai.flaggedAction });
+    }
+
+    if (batches.length) {
+      await db.insert(runBatches).values(batches.map((b) => ({ runId: run.id, ...b })));
+    }
+    const summary: RunSummary = { rules: results, ai, totalApplied, durationMs: Date.now() - started };
+    await db.update(runs).set({ status: "ok", summary, finishedAt: new Date() }).where(eq(runs.id, run.id));
+    await db.update(mailboxes).set({ lastRunAt: new Date(), status: "active", updatedAt: new Date() }).where(eq(mailboxes.userId, userId));
+    return { runId: run.id, summary };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const summary: RunSummary = { rules: results, totalApplied, durationMs: Date.now() - started };
+    await db.update(runs).set({ status: "error", error: message, summary, finishedAt: new Date() }).where(eq(runs.id, run.id));
+    if (err instanceof GmailAuthError) {
+      await db.update(mailboxes).set({ status: "needs_reauth", updatedAt: new Date() }).where(eq(mailboxes.userId, userId));
+    }
+    throw err;
+  }
+}
+
+async function triagePrimary(ctx: {
+  gmail: GmailClient; email: string; userId: string; policy: PolicyConfig; labels: Record<string, string>; mode: RunMode; batches: BatchRecord[];
+}): Promise<NonNullable<RunSummary["ai"]>> {
+  const { gmail, email, userId, policy, labels, mode, batches } = ctx;
+  const usage: AiUsage & { labeled: number; archived: number; flaggedAction: number } = {
+    messagesConsidered: 0, messagesJudged: 0, cacheHits: 0, requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0, labeled: 0, archived: 0, flaggedAction: 0,
+  };
+  const query = `in:inbox category:primary newer_than:${policy.ai.lookbackDays}d -has:userlabels -is:starred -from:me`;
+  const candidates = await gmail.listMessageIds(query, policy.ai.maxMessagesPerRun * 3);
+  usage.messagesConsidered = candidates.length;
+  if (!candidates.length) return usage;
+
+  const seen = new Set(
+    (await db.select({ id: aiJudgments.messageId }).from(aiJudgments).where(and(eq(aiJudgments.userId, userId), inArray(aiJudgments.messageId, candidates)))).map((r) => r.id),
+  );
+  usage.cacheHits = seen.size;
+  let fresh = candidates.filter((id) => !seen.has(id));
+  const affordable = Math.floor(policy.ai.budgetUsdPerRun / estimateCostUsd(1));
+  fresh = fresh.slice(0, Math.min(policy.ai.maxMessagesPerRun, affordable));
+
+  type Decision = { meta: GmailMessageMeta; judgment: Awaited<ReturnType<typeof triageMessage>>; add: string[]; remove: string[]; actions: string[] };
+  const decisions: Decision[] = [];
+  const results = await mapLimit(fresh, 6, async (id) => {
+    try {
+      const meta = await gmail.getMessageMeta(id);
+      const judgment = await triageMessage(meta, email);
+      return { meta, judgment };
+    } catch {
+      return null;
+    }
+  });
+
+  for (const r of results) {
+    if (!r) continue;
+    const { meta, judgment } = r;
+    usage.messagesJudged++;
+    usage.requests++;
+    usage.inputTokens += judgment.inputTokens;
+    usage.outputTokens += judgment.outputTokens;
+    usage.model = judgment.model;
+    const j = judgment.judgment;
+    const add: string[] = [];
+    const remove: string[] = [];
+    const actions: string[] = [];
+    const cat = j.category as CategoryId;
+    const confident = j.categoryConfidence >= policy.ai.labelConfidence && cat !== "other";
+    const labelName = LABEL_BY_CATEGORY[cat];
+    if (confident && labelName && labels[labelName]) {
+      add.push(labels[labelName], labels[AI_LABEL]);
+      actions.push(`label:${labelName}`);
+    }
+    if (confident && policy.ai.archiveAutomated && j.automated >= policy.ai.archiveAutomatedThreshold && policy.ai.archiveCategories.includes(cat)) {
+      remove.push("INBOX");
+      actions.push("archive");
+    } else if (j.needsAction >= policy.ai.flagActionThreshold) {
+      add.push(labels[ACTION_LABEL]);
+      actions.push("flag:action");
+    }
+    decisions.push({ meta, judgment, add, remove, actions });
+  }
+  usage.estimatedCostUsd = usage.inputTokens * USD_PER_INPUT_TOKEN;
+
+  // Group identical label changes into one batchModify each.
+  const groups = new Map<string, Decision[]>();
+  for (const d of decisions) {
+    if (!d.add.length && !d.remove.length) continue;
+    const key = `${[...d.add].sort().join(",")}|${[...d.remove].sort().join(",")}`;
+    groups.set(key, [...(groups.get(key) ?? []), d]);
+  }
+  for (const [, group] of groups) {
+    const ids = group.map((d) => d.meta.id);
+    const add = group[0].add;
+    const remove = group[0].remove;
+    if (mode === "apply") {
+      await gmail.batchModify(ids, add, remove);
+      batches.push({ ruleId: "ai-triage", messageIds: ids, addLabelIds: add, removeLabelIds: remove, restoreLabelIds: remove.includes("INBOX") ? ["INBOX"] : [] });
+    }
+    for (const d of group) {
+      if (d.actions.some((a) => a.startsWith("label:"))) usage.labeled++;
+      if (d.actions.includes("archive")) usage.archived++;
+      if (d.actions.includes("flag:action")) usage.flaggedAction++;
+    }
+  }
+
+  if (decisions.length) {
+    await db.insert(aiJudgments).values(decisions.map((d) => ({
+      userId, messageId: d.meta.id, threadId: d.meta.threadId,
+      from: d.meta.headers["from"] ?? null, subject: d.meta.headers["subject"] ?? null,
+      receivedAt: d.meta.internalDate ? new Date(Number(d.meta.internalDate)) : null,
+      judgment: d.judgment.judgment, actions: mode === "apply" ? d.actions : d.actions.map((a) => `preview:${a}`),
+      model: d.judgment.model, inputTokens: d.judgment.inputTokens,
+    }))).onConflictDoNothing();
+  }
+  return usage;
+}
+
+/** Reverse every batch of a run: remove what it added, restore what it can safely restore. */
+export async function undoRun(userId: string, runId: string): Promise<{ batches: number; messages: number }> {
+  const [run] = await db.select().from(runs).where(and(eq(runs.id, runId), eq(runs.userId, userId))).limit(1);
+  if (!run) throw new MailboxError("Run not found");
+  if (run.status === "undone") return { batches: 0, messages: 0 };
+  const { gmail } = await gmailFor(userId);
+  const rows = await db.select().from(runBatches).where(eq(runBatches.runId, runId));
+  let messages = 0;
+  for (const b of [...rows].reverse()) {
+    await gmail.batchModify(b.messageIds, b.restoreLabelIds, b.addLabelIds);
+    messages += b.messageIds.length;
+  }
+  await db.update(runs).set({ status: "undone" }).where(eq(runs.id, runId));
+  return { batches: rows.length, messages };
+}

@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mailroom
 
-## Getting Started
+An opinionated Gmail suite. Deterministic rules (labels, filters, aging) keep a mailbox sorted for free;
+[TypeSafe](https://typesafe.ai)'s Jev model answers four narrow, typed questions about whatever the rules
+could not place, for roughly four cents per thousand emails. Every run previews first, writes a receipt, and
+can be undone. Live at <https://email.kevinliu.studio>.
 
-First, run the development server:
+## How it works
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Rules.** `src/lib/policy/rules.ts` turns a `PolicyConfig` into Gmail searches plus label changes
+   (archive stragglers, trash expired codes and old notifications, mark old promotions read, demote heavy
+   promotional senders) and into standing Gmail filters. Trash means Gmail Trash; nothing is ever deleted
+   permanently, sent, or unsubscribed.
+2. **AI triage.** `src/lib/ai/triage.ts` sends metadata only (sender, subject, snippet, bulk headers) to
+   TypeSafe with one Choice (category) and three Nouls (automated, needs action, time-sensitive). Code applies
+   the thresholds in the policy. Each message is judged once and cached in `ai_judgments`.
+3. **Receipts and undo.** Every `batchModify` is recorded in `run_batches`; undo replays the inverse.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The engine is `src/lib/engine/run.ts`. `POST /api/run` runs it for the signed-in user (preview or apply);
+`GET /api/cron` runs every scheduled mailbox once a day (Vercel Cron, `vercel.json`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Next.js 16 (App Router), Auth.js v5 with Google, Drizzle + Postgres (Neon through the Vercel Marketplace),
+`@typesafe-ai/sdk`, Tailwind v4, Vitest.
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. Create a **Web application** OAuth client in Google Cloud > Google Auth Platform > Clients with
+   authorized origins `https://<your-domain>` and `http://localhost:3000`, and redirect URIs
+   `https://<your-domain>/api/auth/callback/google` and `http://localhost:3000/api/auth/callback/google`.
+   The consent screen must be External and, for tokens that do not expire weekly, In production.
+   Until Google verifies the app, users see an "unverified app" notice and the project is capped at 100 users.
+2. Copy `.env.example` to `.env.local` and fill it in (`openssl rand -base64 32` for the two keys).
+3. `pnpm install`, `pnpm db:push` (creates the tables), `pnpm dev`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`vercel link`, `vercel integration add neon --plan free_v3` (or any Postgres as `DATABASE_URL`), set the
+variables from `.env.example` with `vercel env add`, then `vercel deploy --prod`. The cron in `vercel.json`
+calls `/api/cron` with `Authorization: Bearer $CRON_SECRET`.
 
-## Deploy on Vercel
+## Safety properties
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Only metadata leaves Google: no bodies are fetched, stored, or sent to TypeSafe.
+- Refresh tokens are AES-256-GCM encrypted at rest (`TOKEN_ENCRYPTION_KEY`).
+- Trash rules refuse to run above `maxTrashPerRule` matches and never name a protected category.
+- Starred mail is never trashed; `-from:me` mail is never judged.
+- Disconnect revokes the Google token and deletes the user's rows.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+`pnpm test` (Vitest), `pnpm typecheck`, `pnpm db:push`, `pnpm db:studio`.
