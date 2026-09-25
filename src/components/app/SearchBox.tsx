@@ -26,9 +26,9 @@ export function SearchBox({ initial = "", autoFocus = false, compact = false }: 
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); go(q); }}>
         <label className="relative flex-1">
           <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input className="input pl-11" style={{ minHeight: compact ? 44 : 54, fontSize: compact ? 15 : 17 }} placeholder="Ask your mailbox anything: receipts from uber last month, unread mail from real people, recruiters I never answered" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} />
+          <input className="input pl-11" style={{ minHeight: compact ? 42 : 52, fontSize: compact ? 14 : 15.5 }} placeholder="ask your mailbox: receipts from uber last month · unread mail from real people · recruiters I never answered" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} />
         </label>
-        <button className="btn-primary" type="submit" style={{ minHeight: compact ? 44 : 54 }}><Sparkles size={16} /> Search</button>
+        <button className="btn-primary" type="submit" style={{ minHeight: compact ? 42 : 52 }}><Sparkles size={16} /> Search</button>
       </form>
       {!compact ? (
         <div className="flex flex-wrap gap-1.5">

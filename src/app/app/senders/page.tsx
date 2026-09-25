@@ -15,12 +15,11 @@ export default async function SendersPage() {
   if (!mb) redirect("/");
   const senders = await senderOverview(session.user.id, mb.policy);
   return (
-    <div className="section space-y-6">
+    <div className="section space-y-10">
       <div>
         <Link href="/app" className="text-sm text-muted hover:text-ink">← Dashboard</Link>
-        <p className="eyebrow mt-3">Senders</p>
-        <h1 className="text-3xl font-bold tracking-tight">Who fills your mailbox</h1>
-        <p className="max-w-2xl text-muted">Every sender from the last 90 days with volume, how much of it you read, Jev&apos;s judgment, and your standing decision. Decisions become policy: protected senders are never touched, trash decisions run daily.</p>
+        <h1 className="mt-3 text-[clamp(30px,4vw,48px)] font-bold leading-tight tracking-[-0.02em]">Who fills your mailbox</h1>
+        <p className="max-w-2xl text-[17px] text-muted">Ninety days of senders, how much you read, and your standing decision.</p>
       </div>
       <ScanButton label={senders.length ? "Rescan senders" : "Scan senders"} />
       <SenderTable rows={senders.map((s) => ({ ...s, lastSeenAt: s.lastSeenAt ? s.lastSeenAt.toISOString() : null, decision: s.decision ?? null }))} mode="all" />

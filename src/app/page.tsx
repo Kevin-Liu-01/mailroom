@@ -1,124 +1,138 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { auth } from "@/auth";
 import { SignInButton } from "@/components/SignInButton";
+import { HeroScene } from "@/components/landing/HeroScene";
+import { RunFlow } from "@/components/landing/RunFlow";
+import { SearchDiagram } from "@/components/landing/SearchDiagram";
+import { TrashDiagram } from "@/components/landing/TrashDiagram";
+import { JudgmentCard } from "@/components/landing/JudgmentCard";
+import { ClosingBand } from "@/components/landing/ClosingBand";
+import { ReticleSpacer } from "@/components/landing/Section";
 import { CATEGORIES, defaultPolicy } from "@/lib/policy/schema";
-import { buildRules } from "@/lib/policy/rules";
 import { ESTIMATED_TOKENS_PER_MESSAGE, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
+
+export const dynamic = "force-dynamic";
+
+const h2 = "text-[clamp(34px,4.6vw,64px)] font-bold leading-[1.05] tracking-[-0.03em]";
+const lede = "mt-5 max-w-[640px] text-[clamp(17px,1.5vw,21px)] leading-snug text-muted";
 
 export default async function Landing({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const session = await auth();
   const { error } = await searchParams;
   const policy = defaultPolicy();
-  const rules = buildRules(policy);
   const perThousand = 1000 * ESTIMATED_TOKENS_PER_MESSAGE * USD_PER_INPUT_TOKEN;
+  const cta = session?.user ? <Link href="/app" className="btn-primary text-[15px]">Open your dashboard <ArrowRight size={16} /></Link> : <SignInButton label="Connect Gmail" />;
+  const tag = (id: string) => policy.categories.skipInbox.includes(id as never) ? "skips inbox" : policy.categories.protected.includes(id as never) ? "protected" : policy.categories.neverImportant.includes(id as never) ? "not important" : "stays";
 
   return (
-    <div className="space-y-20">
-      <section className="space-y-6 pt-6">
-        <p className="label">Opinionated Gmail suite</p>
-        <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-          Your inbox, sorted by rules you can read and AI judgments that cost pennies.
-        </h1>
-        <p className="max-w-2xl text-lg text-muted">
-          Mailroom applies a fixed taxonomy of labels and filters to your Gmail, ages out noise on a schedule you
-          control, and asks <a className="underline decoration-accent" href="https://typesafe.ai">TypeSafe</a>&apos;s Jev
-          model four narrow questions about whatever the rules could not place. Every run previews first and can be undone.
-        </p>
-        {error === "scope" ? (
-          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-            Mailroom needs the Gmail permissions you unchecked. Sign in again and leave &quot;Read, compose, send, and permanently delete&quot; checked; Mailroom never sends or permanently deletes anything, but that is the scope Gmail labels and archiving live under.
-          </p>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-3">
-          {session?.user ? <Link href="/app" className="btn-primary">Open your dashboard</Link> : <SignInButton />}
-          <a href="#how" className="btn">See how it works</a>
+    <div>
+      <section id="hero" className="section relative grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+        <div className="dither" aria-hidden="true" />
+        <div className="relative">
+          <h1 className="rise text-[clamp(44px,6.4vw,92px)] font-bold leading-[0.98] tracking-[-0.04em]">
+            Your Gmail,
+            <br />
+            sorted.
+          </h1>
+          <p className={`rise rise-2 ${lede}`}>Rules you can read. Typed AI judgments for pennies. A straight answer to what to trash.</p>
+          {error === "scope" ? (
+            <p className="mt-5 max-w-[560px] border border-ink p-4 text-[15px]">Sign in again and leave the Gmail box checked. Mailroom never sends or deletes anything.</p>
+          ) : null}
+          <div className="rise rise-3 mt-8 flex flex-wrap gap-3">
+            {cta}
+            <a href="#how" className="btn text-[15px]">How it works</a>
+          </div>
+          <p className="rise rise-4 mt-6 text-[14px] text-muted">Every run previews first and can be undone.</p>
         </div>
-        <p className="text-xs text-muted">
-          Google shows an &quot;unverified app&quot; notice until Mailroom finishes Google&apos;s review. The owner and up to 100 people can connect today; click Advanced, then continue.
-        </p>
+        <div className="relative rise rise-3">
+          <HeroScene />
+        </div>
       </section>
 
-      <section id="how" className="space-y-6">
-        <h2 className="text-2xl font-semibold tracking-tight">How a run works</h2>
-        <ol className="grid gap-4 sm:grid-cols-3">
-          {[
-            ["1. Deterministic rules", "Standing Gmail filters label mail as it arrives. Each run then re-checks a handful of searches: stragglers still in the inbox, codes older than 30 days, dev and social notifications older than 90 days, unread promotions older than two weeks. Search plus label change, nothing else."],
-            ["2. Typed AI triage", "Primary-tab mail that no rule placed goes to TypeSafe with metadata only: sender, subject, preview, bulk headers. Jev returns a category with a probability distribution and three yes/no probabilities. Code applies thresholds you set."],
-            ["3. Receipt and undo", "Every run records what it matched, what it changed, and what the AI cost. One click reverses a run: labels come off, archived mail returns to the inbox, trashed mail comes back within Gmail's 30-day window."],
-          ].map(([title, body]) => (
-            <li key={title} className="card space-y-2">
-              <h3 className="font-medium">{title}</h3>
-              <p className="text-sm text-muted">{body}</p>
+      <ReticleSpacer />
+
+      <section id="how" className="section">
+        <h2 className={h2}>Rules first. Jev second.<br /><span className="text-muted">Receipt last.</span></h2>
+        <p className={lede}>Free searches do the bulk. One cheap judgment places the rest. Everything has an undo.</p>
+        <div className="mt-12"><RunFlow /></div>
+      </section>
+
+      <ReticleSpacer />
+
+      <section id="search" className="section">
+        <h2 className={h2}>Ask in plain words.<br /><span className="text-muted">Get a Gmail query.</span></h2>
+        <p className={lede}>Type it like you would say it. Edit the query if you want. Act on the results in bulk.</p>
+        <div className="mt-12"><SearchDiagram /></div>
+      </section>
+
+      <ReticleSpacer />
+
+      <section id="trash" className="section">
+        <h2 className={h2}>Decide once,<br /><span className="text-muted">sender by sender.</span></h2>
+        <p className={lede}>Jev scores every sender. You click. It becomes a standing rule.</p>
+        <div className="mt-12"><TrashDiagram /></div>
+      </section>
+
+      <ReticleSpacer />
+
+      <section id="policy" className="section">
+        <h2 className={h2}>Thirteen labels.<br /><span className="text-muted">Nothing custom.</span></h2>
+        <ul className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {CATEGORIES.filter((c) => c.label).map((c) => (
+            <li key={c.id} className="card flex items-center justify-between gap-3 py-5">
+              <span className="text-[19px] font-bold leading-tight">{c.label}</span>
+              <span className={`chip ${tag(c.id) === "skips inbox" ? "chip--accent" : ""}`}>{tag(c.id)}</span>
             </li>
           ))}
-        </ol>
+        </ul>
+        <p className={lede}>Never sends. Never unsubscribes. Never deletes for good. Never trashes work, people, or money.</p>
       </section>
 
-      <section id="policy" className="space-y-6">
-        <h2 className="text-2xl font-semibold tracking-tight">The policy, spelled out</h2>
-        <p className="max-w-2xl text-muted">These are the defaults. Every threshold, list, and switch is editable per mailbox; the structure is not, which is the point.</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {CATEGORIES.filter((c) => c.label).map((c) => {
-            const skips = policy.categories.skipInbox.includes(c.id);
-            const never = policy.categories.neverImportant.includes(c.id);
-            const prot = policy.categories.protected.includes(c.id);
-            return (
-              <div key={c.id} className="card space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-medium">{c.label}</h3>
-                  <span className="text-[10px] uppercase tracking-wide text-muted">{skips ? "skips inbox" : prot ? "protected" : never ? "not important" : "stays"}</span>
-                </div>
-                <p className="text-sm text-muted">{c.description}</p>
-              </div>
-            );
-          })}
+      <ReticleSpacer />
+
+      <section id="ai" className="section grid items-center gap-12 lg:grid-cols-2">
+        <div>
+          <h2 className={h2}>Five typed questions.<br /><span className="text-muted">One judgment per email.</span></h2>
+          <p className={lede}>Metadata only. Probabilities, not prose. Judged once, cached forever.</p>
         </div>
-        <div className="card space-y-3">
-          <h3 className="font-medium">Aging rules the engine runs every day</h3>
-          <ul className="grid gap-2 text-sm sm:grid-cols-2">
-            {rules.filter((r) => !r.id.startsWith("archive-stragglers")).map((r) => (
-              <li key={r.id} className="flex gap-2">
-                <span className="mono shrink-0 rounded bg-accent-soft px-1.5 py-0.5 text-[11px]">{r.kind}</span>
-                <span className="text-muted">{r.why}</span>
-              </li>
-            ))}
-            <li className="flex gap-2"><span className="mono shrink-0 rounded bg-accent-soft px-1.5 py-0.5 text-[11px]">archive</span><span className="text-muted">Dev, social, and receipt mail that a filter missed leaves the inbox after {policy.aging.archiveStragglersAfterDays} days.</span></li>
-          </ul>
-          <p className="text-xs text-muted">Trash means Gmail Trash with its 30-day recovery. Mailroom never permanently deletes, never sends, never unsubscribes, and never trashes Work, Personal, Finance, Travel, Events, Recruiting, or School mail.</p>
-        </div>
+        <JudgmentCard />
       </section>
 
-      <section id="ai" className="space-y-6">
-        <h2 className="text-2xl font-semibold tracking-tight">What the AI is asked</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <ReticleSpacer />
+
+      <section id="cost" className="section">
+        <h2 className={h2}>Rules are free.<br /><span className="text-muted">Judgments cost cents.</span></h2>
+        <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {[
-            ["Category (Choice)", "Which of the fourteen buckets fits? Returns a full probability distribution; the label is applied only above your confidence threshold, 0.6 by default."],
-            ["Automated? (Noul)", "Was this generated by a system or bulk mailer rather than written for you? Above 0.85, and in a noisy category, it leaves Primary."],
-            ["Needs action? (Noul)", "Do you have to reply, decide, pay, sign, or schedule? Above 0.7 it gets the Action Needed label and shows up on your dashboard."],
-            ["Time-sensitive? (Noul)", "Does it lose value within days? Kept as a signal on the dashboard so codes and deadlines float up."],
-          ].map(([t, b]) => (
-            <div key={t} className="card space-y-1.5"><h3 className="font-medium">{t}</h3><p className="text-sm text-muted">{b}</p></div>
+            ["$0", "for every rule, every day"],
+            [`$${perThousand.toFixed(2)}`, "per 1,000 emails judged"],
+            [`$${policy.ai.budgetUsdPerRun.toFixed(2)}`, "cap per run, yours to change"],
+          ].map(([n, t]) => (
+            <div key={t} className="card py-8">
+              <div className="text-[clamp(40px,5vw,64px)] font-bold leading-none tracking-[-0.03em]">{n}</div>
+              <div className="mt-3 text-[16px] text-muted">{t}</div>
+            </div>
           ))}
         </div>
-        <p className="text-sm text-muted">Only metadata is sent: sender, subject, Gmail&apos;s preview snippet, date, and whether the mail carries bulk headers. Bodies never leave Google. Each message is judged once and cached.</p>
       </section>
 
-      <section id="cost" className="space-y-4">
-        <h2 className="text-2xl font-semibold tracking-tight">What it costs</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="card"><p className="label">Rules</p><p className="mt-1 text-2xl font-semibold">$0</p><p className="text-sm text-muted">Gmail searches and label changes are free API calls.</p></div>
-          <div className="card"><p className="label">AI triage</p><p className="mt-1 text-2xl font-semibold">≈ ${perThousand.toFixed(2)} / 1,000 emails</p><p className="text-sm text-muted">Jev bills ${(USD_PER_INPUT_TOKEN * 1_000_000).toFixed(3)} per million input tokens; a message with four questions is about {ESTIMATED_TOKENS_PER_MESSAGE} tokens.</p></div>
-          <div className="card"><p className="label">Per-run cap</p><p className="mt-1 text-2xl font-semibold">${policy.ai.budgetUsdPerRun.toFixed(2)}</p><p className="text-sm text-muted">Default budget per run, adjustable. The dashboard shows actual spend from token counts.</p></div>
-        </div>
+      <ReticleSpacer />
+
+      <section id="trust" className="section">
+        <h2 className={h2}>Your mail stays<br /><span className="text-muted">in Google.</span></h2>
+        <ul className="mt-12 grid gap-4 text-[clamp(18px,2vw,26px)] font-bold leading-tight sm:grid-cols-2">
+          <li className="card py-7">Bodies never leave Google.</li>
+          <li className="card py-7">Tokens encrypted at rest.</li>
+          <li className="card py-7">Trash keeps 30 days. Undo keeps more.</li>
+          <li className="card py-7">Disconnect deletes everything.</li>
+        </ul>
+        <p className={lede}>Unverified with Google for now: the owner and up to 100 people can connect.</p>
       </section>
 
-      <section className="card flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Connect your Gmail</h2>
-          <p className="text-sm text-muted">First run is a preview. Nothing changes until you press Apply.</p>
-        </div>
-        {session?.user ? <Link href="/app" className="btn-primary">Open your dashboard</Link> : <SignInButton label="Connect Gmail and preview" />}
-      </section>
+      <ReticleSpacer />
+
+      <ClosingBand cta={cta} />
     </div>
   );
 }

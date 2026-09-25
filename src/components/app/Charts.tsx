@@ -7,9 +7,10 @@ export function VolumeBars({ daily }: { daily: MailboxStats["daily"] }) {
   const w = 280, h = 64, gap = 4, bw = (w - gap * (daily.length - 1)) / daily.length;
   return (
     <svg viewBox={`0 0 ${w} ${h + 16}`} width="100%" role="img" aria-label="Messages received per day, last 14 days">
+      <defs><pattern id="bar-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="4" fill="var(--ink)" /></pattern></defs>
       {daily.map((d, i) => {
         const bh = Math.max(2, (d.received / max) * h);
-        return <g key={d.date}><rect x={i * (bw + gap)} y={h - bh} width={bw} height={bh} rx="2" fill={i === daily.length - 1 ? "var(--accent)" : "color-mix(in srgb, var(--accent) 45%, var(--surface))"} /><title>{d.date}: {d.received}</title></g>;
+        return <g key={d.date}><rect x={i * (bw + gap)} y={h - bh} width={bw} height={bh} fill={i === daily.length - 1 ? "var(--ink)" : "url(#bar-hatch)"} stroke="var(--ink)" strokeWidth=".8" /><title>{`${d.date}: ${d.received} received`}</title></g>;
       })}
       <text x="0" y={h + 13} fontSize="9" fill="var(--muted)">{daily[0]?.date.slice(5)}</text>
       <text x={w} y={h + 13} fontSize="9" fill="var(--muted)" textAnchor="end">today</text>
@@ -39,10 +40,10 @@ export function LabelBars({ labels }: { labels: MailboxStats["labels"] }) {
 export function TabStack({ tabs }: { tabs: MailboxStats["tabs"] }) {
   const order = ["Primary", "Promotions", "Updates", "Social", "Forums"];
   const total = order.reduce((n, k) => n + (tabs[k] ?? 0), 0) || 1;
-  const shades = ["var(--accent)", "color-mix(in srgb, var(--accent) 60%, var(--surface))", "color-mix(in srgb, var(--accent) 40%, var(--surface))", "color-mix(in srgb, var(--accent) 25%, var(--surface))", "color-mix(in srgb, var(--accent) 12%, var(--surface))"];
+  const shades = ["var(--ink)", "color-mix(in srgb, var(--ink) 65%, var(--page))", "color-mix(in srgb, var(--ink) 40%, var(--page))", "color-mix(in srgb, var(--ink) 22%, var(--page))", "color-mix(in srgb, var(--ink) 10%, var(--page))"];
   return (
     <div className="space-y-2">
-      <div className="flex h-3 overflow-hidden rounded-full bg-surface">
+      <div className="flex h-3 overflow-hidden border border-ink bg-page">
         {order.map((k, i) => <div key={k} style={{ width: `${((tabs[k] ?? 0) / total) * 100}%`, background: shades[i] }} title={`${k}: ${tabs[k] ?? 0}`} />)}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-muted">

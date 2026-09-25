@@ -36,8 +36,9 @@ export function SearchResults({ q }: { q: string }) {
     return () => clearTimeout(t);
   }, [q]);
 
-  const allSelected = useMemo(() => Boolean(data?.results.length) && data!.results.every((r) => selected.has(r.id)), [data, selected]);
-  function toggleAll() { setSelected(allSelected ? new Set() : new Set(data?.results.map((r) => r.id))); }
+  const results = useMemo(() => data?.results ?? [], [data]);
+  const allSelected = useMemo(() => results.length > 0 && results.every((r) => selected.has(r.id)), [results, selected]);
+  function toggleAll() { setSelected(allSelected ? new Set() : new Set(results.map((r) => r.id))); }
   function toggle(id: string) { const n = new Set(selected); if (n.has(id)) n.delete(id); else n.add(id); setSelected(n); }
 
   async function act(action: string, label?: string) {
@@ -96,9 +97,9 @@ export function SearchResults({ q }: { q: string }) {
           </div>
         </div>
       ) : null}
-      {data?.error ? <p className="card border-danger/40 text-sm text-danger">{data.error}</p> : null}
+      {data?.error ? <p className="card text-sm" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>{data.error.includes("refresh token") || data.error.includes("access token") ? "Gmail is not connected for this account. Reconnect from the dashboard." : data.error}</p> : null}
 
-      {data?.results.length ? (
+      {results.length ? (
         <div className="card p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={allSelected} onChange={toggleAll} /> {selected.size ? `${selected.size} selected` : "Select all"}</label>
@@ -115,7 +116,7 @@ export function SearchResults({ q }: { q: string }) {
             </div>
           </div>
           <ul className="divide-y divide-line">
-            {data.results.map((r) => (
+            {results.map((r) => (
               <li key={r.id} className={`flex gap-3 px-4 py-3 ${selected.has(r.id) ? "bg-accent-soft/40" : ""}`}>
                 <input type="checkbox" className="mt-1.5" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
                 <div className="min-w-0 flex-1">
@@ -140,7 +141,7 @@ export function SearchResults({ q }: { q: string }) {
             ))}
           </ul>
         </div>
-      ) : data && !loading ? <p className="card text-sm text-muted">Nothing matched. Try fewer constraints, or edit the Gmail query directly.</p> : null}
+      ) : data && !data.error && !loading ? <p className="card text-sm text-muted">Nothing matched. Try fewer constraints, or edit the Gmail query directly.</p> : null}
       {loading ? <p className="text-sm text-muted">Compiling your question with Jev, searching Gmail, ranking results…</p> : null}
     </div>
   );

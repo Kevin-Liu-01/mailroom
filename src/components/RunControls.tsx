@@ -31,7 +31,7 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-bold">Run the policy</h2>
-          <p className="text-sm text-muted">Preview counts everything and changes nothing. Apply does the work and writes an undoable receipt.</p>
+          <p className="text-sm text-muted">Preview changes nothing. Apply writes an undoable receipt.</p>
         </div>
         <div className="flex gap-2">
           <button className="btn" disabled={disabled || busy !== null} onClick={() => run("dry-run")}>{busy === "dry-run" ? "Previewing…" : "Preview"}</button>

@@ -40,11 +40,10 @@ export default async function Dashboard() {
   const firstTime = runs.length === 0;
 
   return (
-    <div className="section space-y-8">
+    <div className="section space-y-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Mailbox</p>
-          <h1 className="text-3xl font-bold tracking-tight">{mailbox.email}</h1>
+          <h1 className="mt-3 text-[clamp(30px,4vw,48px)] font-bold leading-tight tracking-[-0.02em]">{mailbox.email}</h1>
           <p className="text-sm text-muted">Last run {when(mailbox.lastRunAt)} · {mailbox.status === "active" ? "connected" : mailbox.status}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -64,8 +63,8 @@ export default async function Dashboard() {
 
       {firstTime ? (
         <div className="card card--surface space-y-2">
-          <h2 className="text-lg font-bold">First run: preview, then apply</h2>
-          <p className="text-sm text-muted">Preview counts what every rule would touch and judges a sample of your Primary tab without changing anything. Apply creates the labels and filters, does the work, and writes an undoable receipt. Then scan senders to see what is safe to trash.</p>
+          <h2 className="text-xl font-bold">First run: preview, then apply.</h2>
+          <p className="text-[15px] text-muted">Preview changes nothing. Apply does the work and writes an undoable receipt.</p>
         </div>
       ) : null}
 

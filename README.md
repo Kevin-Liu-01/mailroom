@@ -63,3 +63,4 @@ calls `/api/cron` with `Authorization: Bearer $CRON_SECRET`.
 ## Scripts
 
 `pnpm test` (Vitest), `pnpm typecheck`, `pnpm db:push`, `pnpm db:studio`, `pnpm smoke:triage`, `pnpm smoke:search`.
+`scripts/seed-preview-user.ts` creates a throwaway signed-in user (no Gmail) so the app pages can be reviewed locally; run it with `--remove` afterwards.

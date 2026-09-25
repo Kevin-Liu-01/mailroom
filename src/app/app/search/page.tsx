@@ -15,12 +15,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const { q = "" } = await searchParams;
   const saved = await db.select().from(schema.savedSearches).where(eq(schema.savedSearches.userId, session.user.id)).orderBy(desc(schema.savedSearches.createdAt)).limit(20);
   return (
-    <div className="section space-y-6">
+    <div className="section space-y-10">
       <div>
         <Link href="/app" className="text-sm text-muted hover:text-ink">← Dashboard</Link>
-        <p className="eyebrow mt-3">Search</p>
-        <h1 className="text-3xl font-bold tracking-tight">Ask your mailbox in plain words</h1>
-        <p className="max-w-2xl text-muted">Jev turns the sentence into typed parts, Mailroom writes the Gmail query, runs it, and ranks the results by the signal you asked for. Select results to archive, label, or trash; every action is undoable.</p>
+        <h1 className="mt-3 text-[clamp(30px,4vw,48px)] font-bold leading-tight tracking-[-0.02em]">Ask your mailbox in plain words</h1>
+        <p className="max-w-2xl text-[17px] text-muted">Type it like you would say it. Every action on the results is undoable.</p>
       </div>
       <SearchBox initial={q} autoFocus={!q} />
       <div className="grid gap-6 lg:grid-cols-[1fr_260px]">

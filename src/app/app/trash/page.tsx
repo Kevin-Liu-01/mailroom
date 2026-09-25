@@ -28,12 +28,11 @@ export default async function TrashPage() {
   const lastCounts = new Map((lastRun?.summary?.rules ?? []).map((r) => [r.id, r]));
 
   return (
-    <div className="section space-y-8">
+    <div className="section space-y-12">
       <div>
         <Link href="/app" className="text-sm text-muted hover:text-ink">← Dashboard</Link>
-        <p className="eyebrow mt-3">What to trash</p>
-        <h1 className="text-3xl font-bold tracking-tight">Know what to throw away</h1>
-        <p className="max-w-2xl text-muted">Three layers, from safest to most opinionated: the standing aging rules, Jev&apos;s per-sender judgment of what loses nothing after a month, and per-message disposability from triage. Everything lands in Gmail Trash with 30 days to change your mind, and every action is undoable.</p>
+        <h1 className="mt-3 text-[clamp(30px,4vw,48px)] font-bold leading-tight tracking-[-0.02em]">Know what to throw away</h1>
+        <p className="max-w-2xl text-[17px] text-muted">Senders Jev calls disposable, messages triage flagged, and the standing rules. Trash keeps 30 days; undo keeps more.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -44,7 +43,7 @@ export default async function TrashPage() {
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="text-xl font-bold">By sender</h2><p className="text-sm text-muted">Jev reads volume, how often you open them, and sample subjects. Protect overrides everything else.</p></div>
+          <div><h2 className="text-2xl font-bold">By sender</h2><p className="text-sm text-muted">Volume, how often you open them, and what they send. Protect beats everything.</p></div>
           <ScanButton label={senders.length ? "Rescan senders" : "Scan senders"} />
         </div>
         <SenderTable rows={senders.map((s) => ({ ...s, lastSeenAt: s.lastSeenAt ? s.lastSeenAt.toISOString() : null, decision: s.decision ?? null }))} mode="trash" />
@@ -52,7 +51,7 @@ export default async function TrashPage() {
 
       <section className="space-y-3">
         <h2 className="text-xl font-bold">Disposable messages from triage</h2>
-        <p className="text-sm text-muted">Messages the daily triage judged disposable once seen. Select and trash; or leave them and the aging rules will get the noisy categories later.</p>
+        <p className="text-sm text-muted">Judged disposable by triage. Select and trash, or let the aging rules catch them.</p>
         <DisposableList items={disposable.map((j) => ({ id: j.messageId, threadId: j.threadId, from: j.from, subject: j.subject, receivedAt: j.receivedAt?.toISOString() ?? null, category: j.judgment.category, disposable: j.judgment.disposable ?? 0 }))} />
       </section>
 
