@@ -66,6 +66,17 @@ export function buildRules(policy: PolicyConfig): Rule[] {
   read("mark-read-old-social", "category:social", a.markReadSocialAfterDays, "Unread social notifications stop counting after two weeks.");
   read("mark-read-old-updates", "category:updates", a.markReadUpdatesAfterDays, "Unread automated updates stop counting after a month.");
 
+  for (const [domain, days] of Object.entries(policy.senders.trashAfterDays)) {
+    if (policy.senders.protected.includes(domain)) continue;
+    rules.push({
+      id: `trash-sender:${domain}`,
+      kind: "trash",
+      query: `from:${domain} older_than:${days}d -in:trash -is:starred`,
+      addLabelIds: ["TRASH"],
+      removeLabelIds: ["INBOX", "UNREAD"],
+      why: `You decided mail from ${domain} is disposable after ${days} days.`,
+    });
+  }
   if (policy.senders.heavyPromo.length) {
     rules.push({
       id: "demote-heavy-promos",

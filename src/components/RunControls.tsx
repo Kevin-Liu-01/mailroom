@@ -30,7 +30,7 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
     <div className="card space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-medium">Run the policy</h2>
+          <h2 className="font-bold">Run the policy</h2>
           <p className="text-sm text-muted">Preview counts everything and changes nothing. Apply does the work and writes an undoable receipt.</p>
         </div>
         <div className="flex gap-2">
@@ -40,7 +40,7 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
       </div>
       {busy ? <p className="text-sm text-muted">Talking to Gmail{busy === "apply" ? " and TypeSafe" : ""}. Large mailboxes take a minute or two.</p> : null}
       {result && "error" in result ? (
-        <p className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm">
+        <p className="rounded-md p-3 text-sm" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>
           {result.needsReauth ? "Gmail access expired or was revoked. Reconnect from the banner above." : result.error}
         </p>
       ) : null}
@@ -54,15 +54,15 @@ export function SummaryView({ summary }: { summary: RunSummary; mode?: string })
   return (
     <div className="space-y-3 text-sm">
       <div className="flex flex-wrap gap-4">
-        <span><span className="label">changed</span> <strong>{num(summary.totalApplied)}</strong></span>
+        <span><span className="eyebrow">changed</span> <strong>{num(summary.totalApplied)}</strong></span>
         {summary.ai ? (
           <>
-            <span><span className="label">AI judged</span> <strong>{num(summary.ai.messagesJudged)}</strong> of {num(summary.ai.messagesConsidered)}</span>
-            <span><span className="label">AI cost</span> <strong>{usd(summary.ai.estimatedCostUsd)}</strong> ({num(summary.ai.inputTokens)} tokens)</span>
-            <span><span className="label">labeled / archived / flagged</span> <strong>{summary.ai.labeled} / {summary.ai.archived} / {summary.ai.flaggedAction}</strong></span>
+            <span><span className="eyebrow">AI judged</span> <strong>{num(summary.ai.messagesJudged)}</strong> of {num(summary.ai.messagesConsidered)}</span>
+            <span><span className="eyebrow">AI cost</span> <strong>{usd(summary.ai.estimatedCostUsd)}</strong> ({num(summary.ai.inputTokens)} tokens)</span>
+            <span><span className="eyebrow">labeled / archived / flagged</span> <strong>{summary.ai.labeled} / {summary.ai.archived} / {summary.ai.flaggedAction}</strong></span>
           </>
         ) : null}
-        <span><span className="label">took</span> <strong>{(summary.durationMs / 1000).toFixed(1)}s</strong></span>
+        <span><span className="eyebrow">took</span> <strong>{(summary.durationMs / 1000).toFixed(1)}s</strong></span>
       </div>
       {touched.length ? (
         <table className="w-full text-left">

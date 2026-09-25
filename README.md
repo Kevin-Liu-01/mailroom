@@ -3,7 +3,7 @@
 An opinionated Gmail suite. Deterministic rules (labels, filters, aging) keep a mailbox sorted for free;
 [TypeSafe](https://typesafe.ai)'s Jev model answers four narrow, typed questions about whatever the rules
 could not place, for roughly four cents per thousand emails. Every run previews first, writes a receipt, and
-can be undone. Live at <https://email.kevinliu.studio>.
+can be undone. Live at <https://mailroom.kevinliu.studio>.
 
 ## How it works
 
@@ -15,6 +15,18 @@ can be undone. Live at <https://email.kevinliu.studio>.
    TypeSafe with one Choice (category) and three Nouls (automated, needs action, time-sensitive). Code applies
    the thresholds in the policy. Each message is judged once and cached in `ai_judgments`.
 3. **Receipts and undo.** Every `batchModify` is recorded in `run_batches`; undo replays the inverse.
+
+4. **Natural-language search.** `src/lib/search/compile.ts` finds candidates in code (known senders, explicit
+   dates, status words, leftover topic words), asks TypeSafe to select among them (category, time window,
+   sender, four intents), and assembles a Gmail query that is shown and editable. `src/lib/search/rerank.ts`
+   asks one small question per result for the signal the query needs (relevance, needs reply, human,
+   disposable). Bulk actions on results go through `src/lib/engine/actions.ts` and are undoable runs.
+5. **What to trash.** `src/lib/engine/senders.ts` aggregates 90 days of mail by sender, judges each sender once
+   (category, safe to trash after a month, transactional, human), and combines that with your own reading
+   behavior into a recommendation: protect, trash after 30 days, trash all, keep. Decisions become policy
+   (`senders.protected`, `senders.trashAfterDays`) and run daily.
+6. **Mailbox map.** `src/lib/engine/stats.ts` snapshots label sizes, tab sizes, and 14 days of volume after
+   every daily run and on demand.
 
 The engine is `src/lib/engine/run.ts`. `POST /api/run` runs it for the signed-in user (preview or apply);
 `GET /api/cron` runs every scheduled mailbox once a day (Vercel Cron, `vercel.json`).
@@ -50,4 +62,4 @@ calls `/api/cron` with `Authorization: Bearer $CRON_SECRET`.
 
 ## Scripts
 
-`pnpm test` (Vitest), `pnpm typecheck`, `pnpm db:push`, `pnpm db:studio`.
+`pnpm test` (Vitest), `pnpm typecheck`, `pnpm db:push`, `pnpm db:studio`, `pnpm smoke:triage`, `pnpm smoke:search`.

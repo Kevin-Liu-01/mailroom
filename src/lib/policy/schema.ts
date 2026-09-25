@@ -63,6 +63,10 @@ export const PolicySchema = z.object({
     work: z.array(z.string().min(3)).default([]),
     // Domains always labeled Personal (and important).
     family: z.array(z.string().min(3)).default([]),
+    // Domains no rule and no AI decision may ever trash or archive.
+    protected: z.array(z.string().min(3)).default([]),
+    // Per-sender aging: mail from this domain older than N days goes to Trash.
+    trashAfterDays: z.record(z.string().min(3), day).default({}),
   }).prefault({}),
   ai: z.object({
     enabled: z.boolean().default(true),

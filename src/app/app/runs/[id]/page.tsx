@@ -17,10 +17,10 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   if (!run) notFound();
   const batches = await db.select().from(schema.runBatches).where(eq(schema.runBatches.runId, id));
   return (
-    <div className="space-y-6">
+    <div className="section space-y-6">
       <div>
-        <Link href="/app" className="text-sm text-muted hover:text-foreground">← Dashboard</Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">{run.mode === "apply" ? "Run" : "Preview"} on {when(run.startedAt)}</h1>
+        <Link href="/app" className="text-sm text-muted hover:text-ink">← Dashboard</Link>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">{run.mode === "apply" ? "Run" : "Preview"} on {when(run.startedAt)}</h1>
         <p className="text-sm text-muted">{run.trigger} · {run.status}{run.finishedAt ? ` · finished ${when(run.finishedAt)}` : ""}</p>
       </div>
       {run.error ? <p className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm">{run.error}</p> : null}

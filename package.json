@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "smoke:triage": "tsx --tsconfig tsconfig.json scripts/triage-smoke.ts"
+    "smoke:triage": "tsx --tsconfig tsconfig.json scripts/triage-smoke.ts",
+    "smoke:search": "tsx --tsconfig tsconfig.json scripts/search-smoke.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

@@ -57,6 +57,10 @@ export const QUESTIONS = {
     "Does this email lose its value if not seen within a few days?",
     { true: "A code, deadline, delivery window, event date, or expiring offer within days.", false: "No time pressure; equally useful next month." },
   ),
+  disposable: noul(
+    "Once the recipient has seen this email, would nothing be lost by trashing it?",
+    { true: "Promotion, notification, digest, expired code, or duplicate of something the recipient has elsewhere.", false: "A record, receipt, statement, ticket, personal message, or anything someone might search for later." },
+  ),
 } as const;
 
 export type TriageResult = { judgment: Judgment; model: string; inputTokens: number; outputTokens: number };
@@ -72,6 +76,7 @@ export async function triageMessage(meta: GmailMessageMeta, userEmail: string): 
       automated: res.answers.automated.noul,
       needsAction: res.answers.needs_action.noul,
       timeSensitive: res.answers.time_sensitive.noul,
+      disposable: res.answers.disposable.noul,
     },
     model: res.model,
     inputTokens: res.usage.input_tokens,
@@ -80,7 +85,7 @@ export async function triageMessage(meta: GmailMessageMeta, userEmail: string): 
 }
 
 /** Rough per-message token estimate for budget checks before a run (state + four questions). */
-export const ESTIMATED_TOKENS_PER_MESSAGE = 1200; // measured on 2026-09-25: 1,188 to 1,224 tokens per message with four questions
+export const ESTIMATED_TOKENS_PER_MESSAGE = 1300; // measured on 2026-09-25: 1,188 to 1,224 tokens per message with four questions
 export function estimateCostUsd(messages: number): number {
   return messages * ESTIMATED_TOKENS_PER_MESSAGE * USD_PER_INPUT_TOKEN;
 }

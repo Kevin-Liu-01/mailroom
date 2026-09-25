@@ -14,3 +14,7 @@ export function when(d: Date | string | null | undefined): string {
 export function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
+
+export function daysAgo(n: number): Date {
+  return new Date(Date.now() - n * 86400_000);
+}

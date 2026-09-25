@@ -24,7 +24,7 @@ function CategoryPicker({ label, value, onChange }: { label: string; value: Cate
           const on = value.includes(c.id);
           return (
             <button key={c.id} type="button" onClick={() => onChange(on ? value.filter((v) => v !== c.id) : [...value, c.id])}
-              className={`rounded-full border px-2.5 py-1 text-xs transition ${on ? "border-accent bg-accent-soft" : "border-border text-muted hover:border-accent"}`}>
+              className={`rounded-full border px-2.5 py-1 text-xs transition ${on ? "border-accent bg-accent-soft" : "border-line text-muted hover:border-accent"}`}>
               {c.label}
             </button>
           );
@@ -40,7 +40,7 @@ function Days({ label, value, onChange, allowOff }: { label: string; value: numb
       <span>{label}</span>
       <span className="flex items-center gap-2">
         {allowOff ? <input type="checkbox" checked={value !== null} onChange={(e) => onChange(e.target.checked ? 30 : null)} /> : null}
-        <input type="number" min={1} max={3650} className="w-20 rounded border border-border bg-background px-2 py-1 text-right" disabled={value === null}
+        <input type="number" min={1} max={3650} className="w-20 rounded border border-line bg-page px-2 py-1 text-right" disabled={value === null}
           value={value ?? ""} onChange={(e) => onChange(Math.max(1, Number(e.target.value) || 1))} />
         <span className="w-9 text-muted">days</span>
       </span>
@@ -52,7 +52,7 @@ function Num({ label, value, onChange, step = 0.05, min = 0, max = 1 }: { label:
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
       <span>{label}</span>
-      <input type="number" step={step} min={min} max={max} className="w-24 rounded border border-border bg-background px-2 py-1 text-right" value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input type="number" step={step} min={min} max={max} className="w-24 rounded border border-line bg-page px-2 py-1 text-right" value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </label>
   );
 }
@@ -61,7 +61,7 @@ function Lines({ label, hint, value, onChange }: { label: string; hint: string; 
   return (
     <label className="block space-y-1 text-sm">
       <span className="font-medium">{label}</span>
-      <textarea className="mono h-28 w-full rounded border border-border bg-background p-2 text-xs" value={value.join("\n")} placeholder={hint}
+      <textarea className="mono h-28 w-full rounded border border-line bg-page p-2 text-xs" value={value.join("\n")} placeholder={hint}
         onChange={(e) => onChange(e.target.value.split(/\n|,/).map((s) => s.trim()).filter(Boolean))} />
     </label>
   );
@@ -144,6 +144,16 @@ export function PolicyEditor() {
           <Lines label="Work domains" hint="mycompany.com" value={policy.senders.work} onChange={(v) => set({ senders: { ...policy.senders, work: v } })} />
           <Lines label="Family and friends" hint="mom@gmail.com&#10;dad@gmail.com" value={policy.senders.family} onChange={(v) => set({ senders: { ...policy.senders, family: v } })} />
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Lines label="Protected senders (never trashed or archived by any rule or AI decision)" hint="landlord@example.com&#10;accountant.co" value={policy.senders.protected} onChange={(v) => set({ senders: { ...policy.senders, protected: v } })} />
+          <label className="block space-y-1 text-sm">
+            <span className="font-medium">Per-sender trash schedule (domain and days, one per line)</span>
+            <textarea className="mono h-28 w-full rounded border border-line bg-page p-2 text-xs" placeholder="em.target.com 30&#10;news.arcteryx.com 1"
+              value={Object.entries(policy.senders.trashAfterDays).map(([d, n]) => `${d} ${n}`).join("\n")}
+              onChange={(e) => { const next: Record<string, number> = {}; for (const line of e.target.value.split("\n")) { const [d, n] = line.trim().split(/\s+/); if (d && d.length >= 3) next[d] = Math.max(1, Number(n) || 30); } set({ senders: { ...policy.senders, trashAfterDays: next } }); }} />
+            <span className="text-xs text-muted">The Senders and Trash pages write these for you; edit here to change a number.</span>
+          </label>
+        </div>
       </Section>
 
       <Section title="AI triage (TypeSafe Jev)" hint="Only Primary-tab mail that no rule placed is judged, once, from metadata. Thresholds are probabilities from 0 to 1.">
@@ -160,7 +170,7 @@ export function PolicyEditor() {
         <CategoryPicker label="Categories the AI may archive" value={policy.ai.archiveCategories} onChange={(v) => set({ ai: { ...policy.ai, archiveCategories: v } })} />
       </Section>
 
-      <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-lg">
+      <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel p-3 shadow-lg">
         <span className="text-sm text-muted">{msg ?? (dirty ? "Unsaved changes" : "Saved policy")}</span>
         <div className="flex gap-2">
           <button className="btn" type="button" disabled={!dirty} onClick={() => data && setPolicy(data.policy)}>Reset</button>

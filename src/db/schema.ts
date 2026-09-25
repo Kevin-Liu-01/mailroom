@@ -134,6 +134,8 @@ export type Judgment = {
   automated: number;
   needsAction: number;
   timeSensitive: number;
+  /** Probability that nothing is lost if this message is trashed after it has been seen. */
+  disposable?: number;
 };
 
 // TypeSafe judgments are cached per message so a message is only ever paid for once.
@@ -154,3 +156,66 @@ export const aiJudgments = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.messageId] })],
 );
+
+// ---- Senders: aggregated per sender domain, judged once, with the user's standing decision.
+export type SenderJudgment = {
+  category: string;
+  categoryConfidence: number;
+  /** Probability that trashing this sender's mail older than a month loses nothing of value. */
+  safeToTrashOld: number;
+  /** Probability that this sender's mail is a record worth keeping (receipts, statements, confirmations). */
+  transactional: number;
+  /** Probability that a human writes these messages for the recipient. */
+  human: number;
+  model?: string;
+  inputTokens?: number;
+};
+export type SenderDecision = "protect" | "trash-old" | "trash-all" | "heavy-promo" | "work" | "family" | null;
+
+export const senderProfiles = pgTable(
+  "sender_profiles",
+  {
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    domain: text("domain").notNull(),
+    displayName: text("display_name"),
+    messages: integer("messages").default(0).notNull(),
+    unread: integer("unread").default(0).notNull(),
+    inInbox: integer("in_inbox").default(0).notNull(),
+    firstSeenAt: timestamp("first_seen_at", { mode: "date" }),
+    lastSeenAt: timestamp("last_seen_at", { mode: "date" }),
+    sampleSubjects: jsonb("sample_subjects").$type<string[]>().default([]).notNull(),
+    listUnsubscribe: text("list_unsubscribe"),
+    judgment: jsonb("judgment").$type<SenderJudgment>(),
+    decision: text("decision").$type<SenderDecision>(),
+    trashAfterDays: integer("trash_after_days"),
+    scannedAt: timestamp("scanned_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.domain] })],
+);
+
+export type MailboxStats = {
+  takenAt: string;
+  profile: { messagesTotal: number; threadsTotal: number };
+  inbox: { threads: number; unread: number };
+  system: Record<string, { threads: number; unread: number }>;
+  tabs: Record<string, number>;
+  labels: Record<string, { threads: number; unread: number }>;
+  daily: { date: string; received: number }[];
+};
+
+export const mailboxSnapshots = pgTable("mailbox_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  stats: jsonb("stats").$type<MailboxStats>().notNull(),
+  takenAt: timestamp("taken_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const savedSearches = pgTable("saved_searches", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  naturalQuery: text("natural_query").notNull(),
+  gmailQuery: text("gmail_query").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
