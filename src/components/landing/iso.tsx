@@ -107,6 +107,7 @@ export function Hex({ at, s = 9, filled = false }: { at: Pt; s?: number; filled?
 export function Wire({ d, signal = true }: { d: string; signal?: boolean }) {
   return (
     <>
+      <path className="wire-halo" d={d} />
       <path className="wire" d={d} />
       {signal ? <path className="signal" d={d} /> : null}
     </>

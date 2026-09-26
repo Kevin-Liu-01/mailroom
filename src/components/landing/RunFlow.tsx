@@ -172,7 +172,8 @@ function ReceiptTile() {
         <path d="M44 90 H60" style={{ stroke: ink(35) }} strokeWidth={1} strokeDasharray="1 1.5" />
       </g>
       <g>
-        <circle cx={136} cy={58} r={17} style={{ fill: "var(--panel)", stroke: ink(35) }} strokeWidth={1} />
+        <circle cx={136} cy={58} r={17} style={{ fill: "var(--panel)" }} />
+        <circle className="wire" cx={136} cy={58} r={17} />
         <circle className="signal" cx={136} cy={58} r={17} />
         <Undo2 size={18} x={127} y={49} strokeWidth={2.2} style={{ color: "var(--ink)" }} aria-hidden="true" />
         <text x={136} y={87} textAnchor="middle" style={{ ...svgText, fontSize: 6, letterSpacing: 1.4 }}>Undo</text>

@@ -129,9 +129,10 @@ svg { flex-shrink: 0; }
 /* Cursor after the wordmark, and shared diagram motion */
 .cursor::after { content: "▮"; display: inline-block; margin-left: 2px; animation: blink 1.1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
-.signal { fill: none; stroke: var(--ink); stroke-width: 2; stroke-dasharray: 3 10; stroke-linecap: round; animation: signal 2.8s linear infinite; }
-.wire { fill: none; stroke: color-mix(in srgb, var(--ink) 72%, transparent); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
-@keyframes signal { to { stroke-dashoffset: -39; } }
+.signal { fill: none; stroke: var(--page); stroke-width: 2; stroke-dasharray: 3 21; stroke-linecap: butt; animation: signal 2.4s linear infinite; }
+.wire { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.wire-halo { fill: none; stroke: var(--page); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
+@keyframes signal { to { stroke-dashoffset: -48; } }
 .rise { animation: rise .6s cubic-bezier(.22, 1, .36, 1) both; }
 .rise-2 { animation-delay: .08s; } .rise-3 { animation-delay: .16s; } .rise-4 { animation-delay: .24s; } .rise-5 { animation-delay: .32s; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
