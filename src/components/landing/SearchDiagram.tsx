@@ -57,7 +57,7 @@ export function SearchDiagram() {
               <span className="grid size-9 shrink-0 place-items-center rounded-[6px] border border-line bg-surface text-ink"><Brand id={r.mark} size={18} /></span>
               <span className="min-w-0">
                 <span className="flex items-center gap-2">
-                  {r.unread ? <i className="size-1.5 shrink-0 rounded-full bg-ink" aria-label="unread" /> : null}
+                  {r.unread ? <i className="size-1.5 shrink-0 rounded-full bg-ink" role="img" aria-label="unread" /> : null}
                   <span className={`truncate text-[14px] leading-tight ${r.unread ? "font-bold" : "font-medium"}`}>{r.from}</span>
                   <span className="mono hidden shrink-0 text-[12px] text-muted sm:inline">{r.when}</span>
                 </span>

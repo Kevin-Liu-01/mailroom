@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Inter } from "next/font/google";
 import Link from "next/link";
 import Script from "next/script";
 import { auth, signOut } from "@/auth";
@@ -8,7 +7,7 @@ import { BrandMark, Wordmark } from "@/components/BrandMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
-// Inter (rsms) carries headings and display numbers; Berkeley Mono carries every other glyph. Licensed copy, self-hosted.
+// Berkeley Mono is the only typeface on the site. Licensed copy, self-hosted.
 const berkeley = localFont({
   src: [
     { path: "./fonts/BerkeleyMono-Regular.woff2", weight: "400", style: "normal" },
@@ -17,7 +16,6 @@ const berkeley = localFont({
   variable: "--font-berkeley",
   display: "swap",
 });
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap", axes: ["opsz"] });
 
 const url = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
@@ -39,7 +37,7 @@ function GitHubMark() {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   return (
-    <html lang="en" className={`${berkeley.variable} ${inter.variable}`} suppressHydrationWarning>
+    <html lang="en" className={berkeley.variable} suppressHydrationWarning>
       <body className="min-h-screen antialiased">
         <Script id="mailroom-theme-init" strategy="beforeInteractive">{themeInit}</Script>
         <header className="frame sticky top-0 z-50 flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b border-line bg-page px-4 py-2 sm:px-6">

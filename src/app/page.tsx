@@ -15,7 +15,7 @@ import { ESTIMATED_TOKENS_PER_MESSAGE, USD_PER_INPUT_TOKEN } from "@/lib/ai/tria
 
 export const dynamic = "force-dynamic";
 
-const h2 = "text-[clamp(34px,4.6vw,64px)] font-bold leading-[1.05] tracking-[-0.03em]";
+const h2 = "text-[clamp(30px,4vw,56px)] font-bold leading-[1.08] tracking-[-0.02em]";
 const lede = "mt-5 max-w-[640px] text-[clamp(17px,1.5vw,21px)] leading-snug text-muted";
 
 export default async function Landing({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -27,10 +27,10 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
 
   return (
     <div>
-      <section id="hero" className="section relative grid items-center gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14">
+      <section id="hero" className="section relative grid items-center gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-10">
         <div className="dither" aria-hidden="true" />
         <div className="relative">
-          <h1 className="rise text-[clamp(44px,6.4vw,92px)] font-bold leading-[0.98] tracking-[-0.04em]">
+          <h1 className="rise text-[clamp(40px,5.6vw,80px)] font-bold leading-[1.0] tracking-[-0.03em]">
             Your Gmail,
             <br />
             sorted.

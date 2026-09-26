@@ -14,13 +14,13 @@ const BINS: BinSpec[] = [
 ];
 
 const SORTER = 52;
-const HALF = 34;          // half footprint of a bucket
+const HALF = 37;          // half footprint of a bucket
 const BIN_H = 58;         // wall height
 const RIM = 4;            // wall thickness
-const STEP = 78;          // spacing along the rack's axis (-v: the row climbs up and to the right)
+const STEP = 86;          // spacing along the rack's axis (-v: the row climbs up and to the right)
 const RACK_U = 160;       // every bucket sits at this u
 const RACK_V0 = 52;       // nearest bucket, v
-const ORIGIN: Pt = [150, 252];
+const ORIGIN: Pt = [138, 256];
 
 type Bin = BinSpec & { cu: number; cv: number; wire: string; sorterPort: Pt; mouth: Pt };
 
@@ -83,9 +83,9 @@ function Bucket({ b }: { b: Bin }) {
         fillRule="evenodd" style={{ fill: "var(--panel)", stroke: ink(70) }} {...stroke}
       />
       {/* stencil on the front-left face */}
-      <g transform={faceLeft(u0 + 5, v1, top - 10)}>
-        {b.trash ? <rect x={-1} y={-11} width={2 * HALF - 8} height={15} style={{ fill: "var(--page)" }} /> : null}
-        <text x={0} y={0} style={{ ...svgText, fontSize: 13, letterSpacing: 2 }}>{b.label}</text>
+      <g transform={faceLeft(u0 + 4, v1, top - 12)}>
+        {b.trash ? <rect x={-2} y={-11} width={2 * HALF - 6} height={15} style={{ fill: "var(--page)" }} /> : null}
+        <text x={0} y={0} style={{ ...svgText, fontSize: 12, letterSpacing: 1.3 }}>{b.label}</text>
         {b.tag ? (
           <g transform="translate(0 6)">
             <rect x={-1} y={0} width={2 * HALF - 8} height={12} style={{ fill: "var(--ink)" }} />
@@ -117,7 +117,7 @@ export function HeroScene() {
   const beltWire = path([iso(0, 128, 9), iso(0, 58, 9)]);
   const stack = [{ du: 0, dv: 0 }, { du: 2, dv: -1 }, { du: -1, dv: 1 }, { du: 1, dv: 0 }];
   return (
-    <svg viewBox="0 40 600 360" className="relative block h-auto w-full" role="img" aria-label="Isometric mailroom: letters ride a belt into the JEV sorter and fly along wires into open buckets stenciled Work, Receipts, Promos, Social, and Trash">
+    <svg viewBox="0 28 660 392" className="relative block h-auto w-full" role="img" aria-label="Isometric mailroom: letters ride a belt into the JEV sorter and fly along wires into open buckets stenciled Work, Receipts, Promos, Social, and Trash">
       <Patterns prefix="hero" />
       <g transform={`translate(${ORIGIN[0]} ${ORIGIN[1]})`}>
         {/* judgment packets in the air */}
