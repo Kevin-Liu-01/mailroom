@@ -20,6 +20,7 @@ const berkeley = localFont({
 const url = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   title: "mailroom",
+  verification: { google: "3rhZfQGUOEb4MxiPhacvNbcB513B-hB2IxA-UPef4TY" },
   description: "A sorting room for your Gmail. Rules you can read, typed AI judgments that cost pennies, natural-language search, and a straight answer to what to trash. Every run previews first and can be undone.",
   metadataBase: new URL(url),
   openGraph: { title: "mailroom", description: "A sorting room for your Gmail: rules, cheap typed AI judgments, natural-language search, receipts and undo.", url, siteName: "mailroom" },
