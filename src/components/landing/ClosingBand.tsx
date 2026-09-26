@@ -22,7 +22,7 @@ export function ClosingBand({ cta }: { cta: ReactNode }) {
     <div style={outer}>
       <section id="connect" className="section flex flex-col items-center text-center" style={inner}>
         <BrandMark size={56} />
-        <h2 className="mt-6 text-[clamp(32px,4.4vw,60px)] font-semibold leading-[1.12] tracking-[-0.04em]">
+        <h2 className="mt-6 text-[clamp(20px,6vw,60px)] font-bold leading-[1.08] tracking-[-0.03em]">
           Connect Gmail.
           <br />
           <span className="text-muted">Preview the first run.</span>

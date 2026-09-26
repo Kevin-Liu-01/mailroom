@@ -1,30 +1,31 @@
-import { Envelope, Hex, IsoBox, Patterns, Port, Stamp, Wire, ink, iso, path, poly, svgText, type Pt } from "./iso";
+import { COS, SIN, Envelope, Hex, IsoBox, Patterns, Port, Stamp, Wire, ink, iso, path, poly, svgText, type Pt } from "./iso";
+import { BrandGlyph, type BrandId } from "./Brand";
 
 /**
  * The hero: mail rides a belt into the JEV sorter tower. Five wires leave the tower's right face at
- * staggered heights, run above the rack, and each one drops into its own open bucket.
- * The buckets are the point of the picture, so they are big, open-topped, tagged, and full.
+ * staggered heights, run above the rack, and each one drops into its own open bucket. Every letter
+ * carries the mark of who sent it, so the buckets read at a glance.
  */
-type BinSpec = { label: string; fill: number; trash?: boolean; tag?: string };
+type BinSpec = { label: string; brands: BrandId[]; trash?: boolean; tag?: string };
 const BINS: BinSpec[] = [
-  { label: "Work", fill: 3 },
-  { label: "Receipts", fill: 2 },
-  { label: "Promos", fill: 4 },
-  { label: "Social", fill: 2 },
-  { label: "Trash", fill: 3, trash: true, tag: "30 days" },
+  { label: "Work", brands: ["slack", "notion", "figma"] },
+  { label: "Receipts", brands: ["amazon", "doordash", "ubereats"] },
+  { label: "Promos", brands: ["target", "starbucks", "nike", "adidas"] },
+  { label: "Social", brands: ["linkedin", "instagram", "youtube"] },
+  { label: "Trash", brands: ["github", "substack", "ticketmaster"], trash: true, tag: "30 days" },
 ];
 
 const TOWER = 42;           // half footprint of the sorter
 const TOWER_H = 124;
-const HALF = 37;            // half footprint of a bucket
-const BIN_H = 50;           // wall height
+const HALF = 38;            // half footprint of a bucket
+const BIN_H = 52;           // wall height
 const RIM = 4;              // wall thickness
 const STEP = 98;            // bucket spacing along -v (the row climbs up and to the right)
 const RACK_U = 160;         // every bucket is centred on this u
 const RACK_V0 = 52;         // nearest bucket, v
 const RAIL_U = 148;         // wires run above this u and drop from it
 const DROP_Z = BIN_H + 12;  // a drop ends here, just above the pile
-const ORIGIN: Pt = [144, 262];
+const ORIGIN: Pt = [142, 262];
 
 type Bin = BinSpec & { cu: number; cv: number; wire: string; length: number; port: Pt };
 
@@ -33,20 +34,32 @@ function layout(): Bin[] {
     const cu = RACK_U;
     const cv = RACK_V0 - STEP * j;
     const q = 26 - 13 * j;   // port along the tower's right face, front to back
-    const z = 82 + 9 * j;    // rail height: the farther the bucket, the higher the rail
+    const z = 84 + 9 * j;    // rail height: the farther the bucket, the higher the rail
     const pts: Pt[] = [iso(TOWER, q, z), iso(RAIL_U, q, z), iso(RAIL_U, cv, z), iso(RAIL_U, cv, DROP_Z)];
     const length = RAIL_U - TOWER + Math.abs(cv - q) + (z - DROP_Z);
     return { ...bin, cu, cv, wire: path(pts), length, port: pts[0] };
   });
 }
 
-/** A standing letter inside a bucket: a vertical card in the u/z plane with a flap, poking above the rim. */
-function StandingLetter({ u, v, z0, w, h }: { u: number; v: number; z0: number; w: number; h: number }) {
+/** Transform for drawing on a v = const face: local x runs along u, local y runs down (z decreasing). */
+const faceLeft = (u: number, v: number, z: number) => {
+  const [x, y] = iso(u, v, z);
+  return `matrix(${COS} ${SIN} 0 1 ${x} ${y})`;
+};
+
+/** A standing letter inside a bucket: a vertical card in the u/z plane with a flap and the sender's mark as its seal. */
+function StandingLetter({ u, v, z0, w, h, brand }: { u: number; v: number; z0: number; w: number; h: number; brand: BrandId }) {
   const pts: Pt[] = [iso(u, v, z0), iso(u + w, v, z0), iso(u + w, v, z0 + h), iso(u, v, z0 + h)];
+  const flap = w * 0.5;
+  const s = Math.min(16, Math.max(10, w * 0.34));
   return (
     <g>
-      <polygon points={poly(pts)} style={{ fill: "var(--panel)", stroke: ink(70) }} strokeWidth={1} strokeLinejoin="round" />
-      <path d={path([iso(u, v, z0 + h), iso(u + w / 2, v, z0 + h - w * 0.55), iso(u + w, v, z0 + h)])} style={{ fill: "none", stroke: ink(55) }} strokeWidth={1} strokeLinejoin="round" />
+      <polygon points={poly(pts)} style={{ fill: "var(--panel)", stroke: ink(82) }} strokeWidth={1.25} strokeLinejoin="round" />
+      <path d={path([iso(u, v, z0 + h), iso(u + w / 2, v, z0 + h - flap), iso(u + w, v, z0 + h)])} style={{ fill: "none", stroke: ink(62) }} strokeWidth={1.1} strokeLinejoin="round" />
+      <g transform={faceLeft(u + w / 2 - s / 2, v, z0 + h - flap + s / 2 + 1)}>
+        <rect x={-2.5} y={-2.5} width={s + 5} height={s + 5} rx={2.5} style={{ fill: "var(--panel)", stroke: ink(35) }} strokeWidth={0.9} />
+        <BrandGlyph id={brand} x={0} y={0} size={s} />
+      </g>
     </g>
   );
 }
@@ -54,17 +67,17 @@ function StandingLetter({ u, v, z0, w, h }: { u: number; v: number; z0: number; 
 /** Upright plates on the front-right face: the bucket's name, with an outlined note stacked under it when there is one. */
 function Plate({ at, label, sub }: { at: Pt; label: string; sub?: string }) {
   const [x, y] = at;
-  const w = Math.round(label.length * 7.7 + 18);
-  const w2 = sub ? Math.round(sub.length * 6.6 + 14) : 0;
-  const y0 = sub ? -20 : -9;
+  const w = Math.round(label.length * 8.3 + 20);
+  const w2 = sub ? Math.round(sub.length * 6.8 + 16) : 0;
+  const y0 = sub ? -22 : -10;
   return (
     <g transform={`translate(${x} ${y})`}>
-      <rect x={-w / 2} y={y0} width={w} height={18} style={{ fill: "var(--ink)", stroke: "var(--page)" }} strokeWidth={1.2} />
-      <text x={0} y={y0 + 13} textAnchor="middle" style={{ ...svgText, fill: "var(--page)", fontSize: 11 }}>{label}</text>
+      <rect x={-w / 2} y={y0} width={w} height={20} rx={1} style={{ fill: "var(--ink)", stroke: "var(--page)" }} strokeWidth={1.5} />
+      <text x={0} y={y0 + 14.5} textAnchor="middle" style={{ ...svgText, fill: "var(--page)", fontSize: 12, letterSpacing: 1.4 }}>{label}</text>
       {sub ? (
         <g transform="translate(0 2)">
-          <rect x={-w2 / 2} y={0} width={w2} height={18} style={{ fill: "var(--page)", stroke: "var(--ink)" }} strokeWidth={1.2} />
-          <text x={0} y={13} textAnchor="middle" style={{ ...svgText, fontSize: 9.5, letterSpacing: 1 }}>{sub}</text>
+          <rect x={-w2 / 2} y={0} width={w2} height={19} rx={1} style={{ fill: "var(--page)", stroke: "var(--ink)" }} strokeWidth={1.5} />
+          <text x={0} y={13.5} textAnchor="middle" style={{ ...svgText, fontSize: 10, letterSpacing: 1 }}>{sub}</text>
         </g>
       ) : null}
     </g>
@@ -74,55 +87,68 @@ function Plate({ at, label, sub }: { at: Pt; label: string; sub?: string }) {
 function Bucket({ b }: { b: Bin }) {
   const u0 = b.cu - HALF, u1 = b.cu + HALF, v0 = b.cv - HALF, v1 = b.cv + HALF;
   const top = BIN_H;
-  const stroke = { strokeWidth: 1, vectorEffect: "non-scaling-stroke" as const, strokeLinejoin: "round" as const };
-  const wallFill = b.trash ? "url(#hero-hatch)" : ink(9, "var(--panel)");
-  const wallFillR = b.trash ? "url(#hero-hatch)" : ink(16, "var(--panel)");
-  const letters = Array.from({ length: b.fill }, (_, k) => ({ u: u0 + RIM + 5 + k * 10, v: v0 + RIM + 12 + k * 8, h: top + 4 + (k % 2) * 4 - k }));
+  const stroke = { strokeWidth: 1.5, vectorEffect: "non-scaling-stroke" as const, strokeLinejoin: "round" as const };
+  const wallFill = b.trash ? "url(#hero-hatch)" : ink(12, "var(--panel)");
+  const wallFillR = b.trash ? "url(#hero-hatch)" : ink(24, "var(--panel)");
+  const letters = b.brands.map((brand, k) => ({ brand, u: u0 + RIM + 5 + k * 10, v: v0 + RIM + 12 + k * 8, w: 2 * HALF - 2 * RIM - 14 - k * 10, h: top + 5 + (k % 2) * 4 - k }));
   return (
     <g>
       {/* shadow */}
-      <polygon points={poly([iso(u0 + 6, v0 + 6), iso(u1 + 12, v0 + 6), iso(u1 + 12, v1 + 12), iso(u0 + 6, v1 + 12)])} style={{ fill: ink(7) }} />
+      <polygon points={poly([iso(u0 + 6, v0 + 6), iso(u1 + 13, v0 + 6), iso(u1 + 13, v1 + 13), iso(u0 + 6, v1 + 13)])} style={{ fill: ink(12) }} />
       {/* interior: floor and the two far inner walls */}
-      <polygon points={poly([iso(u0 + RIM, v0 + RIM, 4), iso(u1 - RIM, v0 + RIM, 4), iso(u1 - RIM, v1 - RIM, 4), iso(u0 + RIM, v1 - RIM, 4)])} style={{ fill: ink(78, "var(--panel)") }} />
-      <polygon points={poly([iso(u0 + RIM, v0 + RIM, top), iso(u1 - RIM, v0 + RIM, top), iso(u1 - RIM, v0 + RIM, 4), iso(u0 + RIM, v0 + RIM, 4)])} style={{ fill: ink(62, "var(--panel)") }} />
-      <polygon points={poly([iso(u0 + RIM, v0 + RIM, top), iso(u0 + RIM, v1 - RIM, top), iso(u0 + RIM, v1 - RIM, 4), iso(u0 + RIM, v0 + RIM, 4)])} style={{ fill: ink(48, "var(--panel)") }} />
+      <polygon points={poly([iso(u0 + RIM, v0 + RIM, 4), iso(u1 - RIM, v0 + RIM, 4), iso(u1 - RIM, v1 - RIM, 4), iso(u0 + RIM, v1 - RIM, 4)])} style={{ fill: ink(82, "var(--panel)") }} />
+      <polygon points={poly([iso(u0 + RIM, v0 + RIM, top), iso(u1 - RIM, v0 + RIM, top), iso(u1 - RIM, v0 + RIM, 4), iso(u0 + RIM, v0 + RIM, 4)])} style={{ fill: ink(66, "var(--panel)") }} />
+      <polygon points={poly([iso(u0 + RIM, v0 + RIM, top), iso(u0 + RIM, v1 - RIM, top), iso(u0 + RIM, v1 - RIM, 4), iso(u0 + RIM, v0 + RIM, 4)])} style={{ fill: ink(52, "var(--panel)") }} />
       {/* letters standing inside */}
-      {letters.map((l, k) => <StandingLetter key={k} u={l.u} v={l.v} z0={6} w={2 * HALF - 2 * RIM - 14 - k * 10} h={l.h} />)}
+      {letters.map((l) => <StandingLetter key={l.brand} u={l.u} v={l.v} z0={6} w={l.w} h={l.h} brand={l.brand} />)}
       {/* outer front faces */}
-      <polygon points={poly([iso(u0, v1, top), iso(u1, v1, top), iso(u1, v1, 0), iso(u0, v1, 0)])} style={{ fill: wallFill, stroke: ink(60) }} {...stroke} />
-      <polygon points={poly([iso(u1, v0, top), iso(u1, v1, top), iso(u1, v1, 0), iso(u1, v0, 0)])} style={{ fill: wallFillR, stroke: ink(60) }} {...stroke} />
+      <polygon points={poly([iso(u0, v1, top), iso(u1, v1, top), iso(u1, v1, 0), iso(u0, v1, 0)])} style={{ fill: wallFill, stroke: ink(85) }} {...stroke} />
+      <polygon points={poly([iso(u1, v0, top), iso(u1, v1, top), iso(u1, v1, 0), iso(u1, v0, 0)])} style={{ fill: wallFillR, stroke: ink(85) }} {...stroke} />
       {/* rim: outer top minus inner opening */}
       <path
         d={`${path([iso(u0, v0, top), iso(u1, v0, top), iso(u1, v1, top), iso(u0, v1, top)])} Z ${path([iso(u0 + RIM, v0 + RIM, top), iso(u1 - RIM, v0 + RIM, top), iso(u1 - RIM, v1 - RIM, top), iso(u0 + RIM, v1 - RIM, top)])} Z`}
-        fillRule="evenodd" style={{ fill: "var(--panel)", stroke: ink(70) }} {...stroke}
+        fillRule="evenodd" style={{ fill: "var(--panel)", stroke: ink(85) }} {...stroke}
       />
       <Plate at={iso(u1, b.cv, top / 2 + 2)} label={b.label} sub={b.tag} />
     </g>
   );
 }
 
-/** A letter riding a wire: animateMotion along the same path the signal uses. */
-function FlyingLetter({ d, begin, dur }: { d: string; begin: string; dur: string }) {
+/** A letter riding a wire, carrying its sender's mark: animateMotion along the same path the signal uses. */
+function FlyingLetter({ d, begin, dur, brand }: { d: string; begin: string; dur: string; brand: BrandId }) {
   return (
     <g className="travel">
-      <g transform="translate(-6 -4)">
-        <rect width={12} height={8} rx={1} style={{ fill: "var(--panel)", stroke: "var(--ink)" }} strokeWidth={1} />
-        <path d="M0.5 0.8 L6 4.4 L11.5 0.8" style={{ fill: "none", stroke: "var(--ink)" }} strokeWidth={1} />
+      <g transform="translate(-14 -9.5)">
+        <rect width={28} height={19} rx={1.5} style={{ fill: "var(--panel)", stroke: "var(--ink)" }} strokeWidth={1.5} />
+        <path d="M0.8 1.3 L14 8 L27.2 1.3" style={{ fill: "none", stroke: "var(--ink)" }} strokeWidth={1.2} />
+        <BrandGlyph id={brand} x={9.5} y={8.6} size={9} />
       </g>
       <animateMotion dur={dur} begin={begin} repeatCount="indefinite" path={d} rotate="0" />
     </g>
   );
 }
 
+/** A flat slab the machines stand on. */
+function Slab({ u0, v0, u1, v1 }: { u0: number; v0: number; u1: number; v1: number }) {
+  return <polygon points={poly([iso(u0, v0), iso(u1, v0), iso(u1, v1), iso(u0, v1)])} style={{ fill: ink(5), stroke: ink(32) }} strokeWidth={1} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />;
+}
+
 export function HeroScene() {
   const bins = layout();
   const beltWire = path([iso(0, 116, 9), iso(0, TOWER + 4, 9)]);
-  const stack = [{ du: 0, dv: 0 }, { du: 2, dv: -1 }, { du: -1, dv: 1 }, { du: 1, dv: 0 }];
-  const seam = "color-mix(in srgb, var(--page) 22%, transparent)";
+  const stack: { du: number; dv: number; brand: BrandId }[] = [
+    { du: 0, dv: 0, brand: "chase" }, { du: 2, dv: -1, brand: "uber" }, { du: -1, dv: 1, brand: "spotify" }, { du: 1, dv: 0, brand: "linkedin" },
+  ];
+  const seam = "color-mix(in srgb, var(--page) 24%, transparent)";
+  const far = bins[bins.length - 1];
   return (
-    <svg viewBox="0 30 660 392" className="relative block h-auto w-full" role="img" aria-label="Isometric mailroom: letters ride a belt into the JEV sorter tower and travel along five overhead wires into open buckets labeled Work, Receipts, Promos, Social, and Trash">
+    <svg viewBox="0 24 660 406" className="relative block h-auto w-full" role="img" aria-label="Isometric mailroom: letters stamped with sender logos ride a belt into the JEV sorter tower and travel along five overhead wires into open buckets labeled Work, Receipts, Promos, Social, and Trash">
       <Patterns prefix="hero" />
       <g transform={`translate(${ORIGIN[0]} ${ORIGIN[1]})`}>
+        {/* the floor */}
+        <Slab u0={-TOWER - 16} v0={-TOWER - 16} u1={TOWER + 16} v1={150} />
+        <Slab u0={RACK_U - HALF - 16} v0={far.cv - HALF - 16} u1={RACK_U + HALF + 16} v1={RACK_V0 + HALF + 16} />
+
         {/* judgment packets in the air above the tower */}
         <g>
           <Hex at={[-62, -182]} />
@@ -131,20 +157,23 @@ export function HeroScene() {
         </g>
 
         {/* the sorter tower */}
-        <IsoBox u0={-TOWER} v0={-TOWER} u1={TOWER} v1={TOWER} h={TOWER_H} tone="dark" shadow>
+        <IsoBox u0={-TOWER} v0={-TOWER} u1={TOWER} v1={TOWER} h={TOWER_H} tone="dark" shadow weight={1.5}>
           <polygon points={poly([iso(-16, TOWER, 14), iso(16, TOWER, 14), iso(16, TOWER, 0), iso(-16, TOWER, 0)])} style={{ fill: "var(--page)", stroke: ink(70) }} strokeWidth={1} />
           <path d={path([iso(-TOWER, TOWER, 66), iso(TOWER, TOWER, 66), iso(TOWER, -TOWER, 66)])} style={{ fill: "none", stroke: seam }} strokeWidth={1} />
+          {[14, 22, 30].map((z) => <path key={z} d={path([iso(TOWER, 6, z), iso(TOWER, 36, z)])} style={{ fill: "none", stroke: seam }} strokeWidth={1.2} />)}
           <Stamp u={0} v={0} z={TOWER_H} />
         </IsoBox>
-        {bins.map((b) => <Port key={b.label} at={b.port} s={4} />)}
+        {bins.map((b) => <Port key={b.label} at={b.port} s={5} />)}
 
         {/* intake belt and the waiting stack */}
-        <IsoBox u0={-18} v0={TOWER + 2} u1={18} v1={118} h={8} shadow>
-          {[54, 64, 74, 84, 94, 104, 114].map((v) => <path key={v} d={path([iso(-18, v, 8), iso(18, v, 8)])} style={{ fill: "none", stroke: ink(18) }} strokeWidth={1} />)}
+        <IsoBox u0={-18} v0={TOWER + 2} u1={18} v1={118} h={8} shadow weight={1.25}>
+          {[54, 64, 74, 84, 94, 104, 114].map((v) => <path key={v} d={path([iso(-18, v, 8), iso(18, v, 8)])} style={{ fill: "none", stroke: ink(22) }} strokeWidth={1} />)}
         </IsoBox>
         <Wire d={beltWire} />
-        <Envelope u={-15} v={72} z={8} />
-        {stack.map(({ du, dv }, i) => <Envelope key={i} u={-15 + du} v={130 + dv} z={i * 3.5} />)}
+        <Envelope u={-15} v={72} z={8} weight={1.25} mark={<BrandGlyph id="amazon" x={11.5} y={7} size={7} />} />
+        {stack.map(({ du, dv, brand }, i) => (
+          <Envelope key={brand} u={-15 + du} v={130 + dv} z={i * 3.5} weight={1.25} mark={i === stack.length - 1 ? <BrandGlyph id={brand} x={11.5} y={7} size={7} /> : undefined} />
+        ))}
 
         {/* the buckets, far to near */}
         {[...bins].reverse().map((b) => <Bucket key={b.label} b={b} />)}
@@ -153,7 +182,7 @@ export function HeroScene() {
         <g>{bins.map((b) => <Wire key={b.label} d={b.wire} />)}</g>
 
         {/* letters in flight */}
-        {bins.map((b, j) => <FlyingLetter key={b.label} d={b.wire} begin={`${j * 0.7}s`} dur={`${(1.4 + b.length / 105).toFixed(2)}s`} />)}
+        {bins.map((b, j) => <FlyingLetter key={b.label} d={b.wire} brand={b.brands[0]} begin={`${j * 0.7}s`} dur={`${(1.4 + b.length / 105).toFixed(2)}s`} />)}
       </g>
     </svg>
   );

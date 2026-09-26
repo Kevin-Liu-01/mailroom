@@ -69,14 +69,16 @@ type BoxProps = {
   z?: number; h: number;
   tone?: keyof typeof tones;
   shadow?: boolean;
+  /** outline weight in px (non-scaling) */
+  weight?: number;
   children?: ReactNode;
 };
 
 /** A box drawn as its three visible faces: left (+v), right (+u), and top. Children paint on top of it. */
-export function IsoBox({ u0, v0, u1, v1, z = 0, h, tone = "plain", shadow = false, children }: BoxProps) {
+export function IsoBox({ u0, v0, u1, v1, z = 0, h, tone = "plain", shadow = false, weight = 1, children }: BoxProps) {
   const t = tones[tone];
   const top = z + h;
-  const stroke = { strokeWidth: 1, vectorEffect: "non-scaling-stroke" as const, strokeLinejoin: "round" as const };
+  const stroke = { strokeWidth: weight, vectorEffect: "non-scaling-stroke" as const, strokeLinejoin: "round" as const };
   return (
     <g>
       {shadow ? <polygon points={poly([iso(u0 + 5, v0 + 5), iso(u1 + 11, v0 + 5), iso(u1 + 11, v1 + 11), iso(u0 + 5, v1 + 11)])} style={shadowStyle} /> : null}
@@ -114,12 +116,13 @@ export function Wire({ d, signal = true }: { d: string; signal?: boolean }) {
   );
 }
 
-/** A flat envelope lying on the plane at height z, with its flap drawn on the top face. */
-export function Envelope({ u, v, z = 0, w = 30, d = 20 }: { u: number; v: number; z?: number; w?: number; d?: number }) {
+/** A flat envelope lying on the plane at height z, with its flap drawn on the top face. `mark` is drawn on that face too, in plane-local coordinates (x along u, y along v). */
+export function Envelope({ u, v, z = 0, w = 30, d = 20, weight = 1, mark }: { u: number; v: number; z?: number; w?: number; d?: number; weight?: number; mark?: ReactNode }) {
   return (
-    <IsoBox u0={u} v0={v} u1={u + w} v1={v + d} z={z} h={3}>
+    <IsoBox u0={u} v0={v} u1={u + w} v1={v + d} z={z} h={3} weight={weight}>
       <g transform={plane(u, v, z + 3)}>
-        <path d={`M0.5 0.5 L${w / 2} ${d * 0.58} L${w - 0.5} 0.5`} style={{ fill: "none", stroke: ink(48) }} strokeWidth={1.1} strokeLinejoin="round" />
+        <path d={`M0.5 0.5 L${w / 2} ${d * 0.5} L${w - 0.5} 0.5`} style={{ fill: "none", stroke: ink(55) }} strokeWidth={1.1} strokeLinejoin="round" />
+        {mark}
       </g>
     </IsoBox>
   );

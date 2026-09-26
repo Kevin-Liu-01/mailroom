@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 
+/** The daily-run switch. Compact enough to sit in a line of facts. */
 export function ScheduleToggle({ enabled }: { enabled: boolean }) {
   const [on, setOn] = useState(enabled);
   const [saving, setSaving] = useState(false);
@@ -12,11 +13,11 @@ export function ScheduleToggle({ enabled }: { enabled: boolean }) {
     setSaving(false);
   }
   return (
-    <label className="flex cursor-pointer items-center gap-3 text-sm">
-      <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${on ? "bg-accent" : "bg-border"}`} onClick={toggle} role="switch" aria-checked={on}>
-        <span className={`inline-block h-5 w-5 rounded-full bg-card shadow transition ${on ? "translate-x-5" : "translate-x-0.5"}`} />
+    <button type="button" role="switch" aria-checked={on} onClick={toggle} disabled={saving} className="inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-[13.5px] text-muted hover:text-ink disabled:cursor-wait">
+      <span className={`relative inline-flex h-[18px] w-[32px] items-center rounded-full border border-ink transition ${on ? "bg-ink" : "bg-page"}`}>
+        <span className={`inline-block size-[12px] rounded-full transition ${on ? "translate-x-[15px] bg-page" : "translate-x-[2px] bg-ink"}`} />
       </span>
-      <span>{saving ? "Saving…" : on ? "Daily run is on (13:00 UTC)" : "Daily run is off"}</span>
-    </label>
+      <span>{saving ? "saving…" : on ? "daily run on · 13:00 UTC" : "daily run off"}</span>
+    </button>
   );
 }

@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Link from "next/link";
 import Script from "next/script";
+import { Database, Lock, ShieldOff, Undo2 } from "lucide-react";
 import { auth, signOut } from "@/auth";
 import { BrandMark, Wordmark } from "@/components/BrandMark";
+import { GmailMark } from "@/components/GmailMark";
+import { SignInButton } from "@/components/SignInButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
@@ -35,6 +38,8 @@ function GitHubMark() {
   );
 }
 
+const claim = "inline-flex items-center gap-1.5 whitespace-nowrap";
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   return (
@@ -56,20 +61,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <a className="btn" href="https://github.com/Kevin-Liu-01/mailroom" target="_blank" rel="noreferrer" aria-label="GitHub"><GitHubMark /><span className="hidden sm:inline">GitHub</span></a>
             {session?.user ? (
               <>
-                <Link href="/app" className="btn-primary">Dashboard</Link>
+                <Link href="/app" className="btn-primary"><GmailMark size={16} /> Dashboard</Link>
                 <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
                   <button className="btn" type="submit">Sign out</button>
                 </form>
               </>
-            ) : null}
+            ) : (
+              <SignInButton label="Connect Gmail" />
+            )}
           </div>
         </header>
-        <div className="frame hatch" />
         <main className="frame">{children}</main>
-        <div className="frame hatch" />
-        <footer className="frame flex flex-wrap items-center justify-between gap-3 px-6 py-5 text-[12px] text-muted">
-          <span className="flex items-center gap-2"><BrandMark size={16} /> metadata only · tokens encrypted at rest · every run undoable · nothing is ever sent or permanently deleted</span>
-          <span className="flex items-center gap-3"><Link href="/privacy" className="hover:text-ink">privacy</Link><Link href="/terms" className="hover:text-ink">terms</Link><span>judgments by TypeSafe Jev · built by Kevin Liu</span></span>
+        <footer className="frame flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line px-6 py-5 text-[12.5px] text-muted">
+          <ul className="m-0 flex list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
+            <li className={claim}><BrandMark size={16} /> mailroom</li>
+            <li className={claim}><Database size={13} aria-hidden="true" /> metadata only</li>
+            <li className={claim}><Lock size={13} aria-hidden="true" /> tokens encrypted at rest</li>
+            <li className={claim}><Undo2 size={13} aria-hidden="true" /> every run undoable</li>
+            <li className={claim}><ShieldOff size={13} aria-hidden="true" /> never sent, never deleted for good</li>
+          </ul>
+          <span className="flex flex-wrap items-center gap-3"><Link href="/privacy" className="hover:text-ink">privacy</Link><Link href="/terms" className="hover:text-ink">terms</Link><span>judgments by TypeSafe Jev · built by Kevin Liu</span></span>
         </footer>
       </body>
     </html>

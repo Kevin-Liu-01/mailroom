@@ -1,10 +1,11 @@
-import Link from "next/link";
+import { CalendarClock, Eye, Gavel, Users } from "lucide-react";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db, schema } from "@/db";
 import { senderOverview } from "@/lib/engine/senders";
 import { ScanButton, SenderTable } from "@/components/app/SenderTable";
+import { Meta, PageHead } from "@/components/app/Bits";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,11 @@ export default async function SendersPage() {
   const senders = await senderOverview(session.user.id, mb.policy);
   return (
     <div className="section space-y-10">
-      <div>
-        <Link href="/app" className="text-sm text-muted hover:text-ink">← Dashboard</Link>
-        <h1 className="mt-3 text-[clamp(30px,4vw,48px)] font-bold leading-tight tracking-[-0.02em]">Who fills your mailbox</h1>
-        <p className="max-w-2xl text-[17px] text-muted">Ninety days of senders, how much you read, and your standing decision.</p>
-      </div>
-      <ScanButton label={senders.length ? "Rescan senders" : "Scan senders"} />
+      <PageHead icon={<Users size={26} />} title="Who fills your mailbox" actions={<ScanButton label={senders.length ? "Rescan senders" : "Scan senders"} />}>
+        <Meta icon={CalendarClock}>ninety days of senders</Meta>
+        <Meta icon={Eye}>how much you read</Meta>
+        <Meta icon={Gavel}>your standing decision</Meta>
+      </PageHead>
       <SenderTable rows={senders.map((s) => ({ ...s, lastSeenAt: s.lastSeenAt ? s.lastSeenAt.toISOString() : null, decision: s.decision ?? null }))} mode="all" />
     </div>
   );

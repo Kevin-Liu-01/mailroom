@@ -1,16 +1,17 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Search, Sparkles } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Hash, KeyRound, MailOpen, Paperclip, Receipt, Reply, Search, Sparkles, UserSearch } from "lucide-react";
 
-export const PRESETS = [
-  { label: "Needs my reply", q: "mail from real people that still needs my reply" },
-  { label: "Unread from people this week", q: "unread mail from real people this week" },
-  { label: "Receipts this month", q: "receipts from the last 30 days" },
-  { label: "Recruiters I never answered", q: "recruiters I never answered" },
-  { label: "Security codes", q: "verification codes and sign-in alerts" },
-  { label: "How many unread this week", q: "how many unread messages this week" },
-  { label: "Big attachments", q: "large attachments older than 6 months" },
+export const PRESETS: { label: string; q: string; icon: LucideIcon }[] = [
+  { label: "Needs my reply", q: "mail from real people that still needs my reply", icon: Reply },
+  { label: "Unread from people this week", q: "unread mail from real people this week", icon: MailOpen },
+  { label: "Receipts this month", q: "receipts from the last 30 days", icon: Receipt },
+  { label: "Recruiters I never answered", q: "recruiters I never answered", icon: UserSearch },
+  { label: "Security codes", q: "verification codes and sign-in alerts", icon: KeyRound },
+  { label: "How many unread this week", q: "how many unread messages this week", icon: Hash },
+  { label: "Big attachments", q: "large attachments older than 6 months", icon: Paperclip },
 ];
 
 export function SearchBox({ initial = "", autoFocus = false, compact = false }: { initial?: string; autoFocus?: boolean; compact?: boolean }) {
@@ -32,7 +33,7 @@ export function SearchBox({ initial = "", autoFocus = false, compact = false }: 
       </form>
       {!compact ? (
         <div className="flex flex-wrap gap-1.5">
-          {PRESETS.map((p) => <button key={p.q} type="button" className="chip hover:border-accent" onClick={() => go(p.q)}>{p.label}</button>)}
+          {PRESETS.map(({ q: preset, label, icon: Icon }) => <button key={preset} type="button" className="chip py-1 hover:border-ink hover:text-ink" onClick={() => go(preset)}><Icon size={12} aria-hidden="true" />{label}</button>)}
         </div>
       ) : null}
     </div>

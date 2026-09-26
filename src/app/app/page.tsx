@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-import { AlertCircle, ArrowRight, Inbox, ListChecks, Search, ShieldCheck, Trash2, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, ArrowUpRight, CalendarClock, CheckCircle2, Clock, Coins, Eye, Flag, History, Inbox, LogOut, MailOpen, Play, PlugZap, Search, SlidersHorizontal, Sparkles, Trash2, Users, XCircle } from "lucide-react";
 import { auth } from "@/auth";
 import { db, schema } from "@/db";
+import { GmailMark } from "@/components/GmailMark";
 import { RunControls } from "@/components/RunControls";
 import { ScheduleToggle } from "@/components/ScheduleToggle";
 import { UndoButton } from "@/components/UndoButton";
@@ -12,12 +13,15 @@ import { SignInButton } from "@/components/SignInButton";
 import { SearchBox } from "@/components/app/SearchBox";
 import { LabelBars, TabStack, VolumeBars } from "@/components/app/Charts";
 import { RefreshStats } from "@/components/app/RefreshStats";
+import { CardTitle, Empty, Meta, PageHead, Stat } from "@/components/app/Bits";
 import { latestSnapshot } from "@/lib/engine/stats";
 import { senderOverview } from "@/lib/engine/senders";
 import { USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
 import { daysAgo, num, pct, usd, when } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+const label = "mb-2 text-[12.5px] font-bold text-muted";
 
 export default async function Dashboard() {
   const session = await auth();
@@ -37,96 +41,107 @@ export default async function Dashboard() {
   const attention = recent.filter((j) => j.actions.some((a) => a.endsWith("flag:action"))).slice(0, 8);
   const trashCandidates = senders.filter((s) => s.recommendation.rec.startsWith("trash") && !s.decision);
   const reclaimable = trashCandidates.reduce((n, s) => n + s.messages, 0);
+  const decided = senders.filter((s) => s.decision).length;
   const firstTime = runs.length === 0;
+  const needsReauth = mailbox.status === "needs_reauth";
+  const spend = usd(Number(agg?.tokens ?? 0) * USD_PER_INPUT_TOKEN);
+  const judged = num(Number(agg?.judged ?? 0));
 
   return (
-    <div className="section space-y-12">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="mt-3 text-[clamp(30px,4vw,48px)] font-bold leading-tight tracking-[-0.02em]">{mailbox.email}</h1>
-          <p className="text-sm text-muted">Last run {when(mailbox.lastRunAt)} · {mailbox.status === "active" ? "connected" : mailbox.status}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <ScheduleToggle enabled={mailbox.scheduleEnabled} />
-          <Link href="/app/policy" className="btn"><ListChecks size={15} /> Policy</Link>
-        </div>
-      </div>
+    <div className="section space-y-10">
+      <PageHead
+        icon={<GmailMark size={30} />}
+        title={mailbox.email}
+        actions={<><Link href="/app/policy" className="btn"><SlidersHorizontal size={15} aria-hidden="true" /> Policy</Link><Link href="/app/search" className="btn"><Search size={15} aria-hidden="true" /> Search</Link></>}
+      >
+        <Meta icon={PlugZap}>{needsReauth ? "needs reconnect" : mailbox.status === "active" ? "connected" : mailbox.status}</Meta>
+        <Meta icon={Clock}>last run {when(mailbox.lastRunAt)}</Meta>
+        <Meta icon={CalendarClock}><ScheduleToggle enabled={mailbox.scheduleEnabled} /></Meta>
+      </PageHead>
 
-      {mailbox.status === "needs_reauth" ? (
-        <div className="card flex flex-wrap items-center justify-between gap-3" style={{ borderColor: "var(--warn)", background: "var(--warn-soft)" }}>
-          <p className="flex items-center gap-2 text-sm"><AlertCircle size={16} /> Gmail access expired or was revoked. Reconnect to keep the schedule running.</p>
+      {needsReauth ? (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-ink">
+          <p className="m-0 flex items-center gap-2 text-sm"><AlertTriangle size={16} aria-hidden="true" /> Gmail access expired or was revoked. Reconnect to keep the schedule running.</p>
           <SignInButton label="Reconnect Gmail" />
         </div>
       ) : null}
 
-      <SearchBox />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat icon={Inbox} value={stats ? num(stats.inbox.threads) : "—"} label="inbox threads" />
+        <Stat icon={MailOpen} value={stats ? num(stats.inbox.unread) : "—"} label="unread in inbox" />
+        <Stat icon={Trash2} value={stats ? num(stats.system.TRASH?.threads ?? 0) : "—"} label="in trash" hint="30-day recovery" />
+        <Stat icon={Coins} value={spend} label="spent on judgments" hint={`${judged} judged, each once`} />
+      </div>
 
-      {firstTime ? (
-        <div className="card card--surface space-y-2">
-          <h2 className="display text-2xl">First run: preview, then apply.</h2>
-          <p className="text-[15px] text-muted">Preview changes nothing. Apply does the work and writes an undoable receipt.</p>
-        </div>
-      ) : null}
+      <section className="card space-y-4">
+        <CardTitle icon={Sparkles}>Ask your mailbox</CardTitle>
+        <SearchBox />
+      </section>
 
-      <RunControls disabled={mailbox.status === "needs_reauth"} />
+      {firstTime ? <Empty icon={Eye}><strong className="text-ink">Preview</strong> changes nothing. <strong className="text-ink">Apply</strong> does the work and writes an undoable receipt.</Empty> : null}
+
+      <RunControls disabled={needsReauth} />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="card space-y-3 lg:col-span-2">
-          <div className="flex items-center justify-between"><h2 className="flex items-center gap-2 font-bold"><Inbox size={16} /> Mailbox map</h2><RefreshStats label={stats ? "Refresh" : "Count my mailbox"} /></div>
+        <section className="card space-y-5 lg:col-span-2">
+          <CardTitle icon={Inbox} action={<RefreshStats label={stats ? "Refresh" : "Count my mailbox"} />}>Mailbox map</CardTitle>
           {stats ? (
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-md bg-surface p-2"><div className="display text-2xl">{num(stats.inbox.threads)}</div><div className="text-[11px] text-muted">inbox threads</div></div>
-                  <div className="rounded-md bg-surface p-2"><div className="display text-2xl">{num(stats.inbox.unread)}</div><div className="text-[11px] text-muted">unread</div></div>
-                  <div className="rounded-md bg-surface p-2"><div className="display text-2xl">{num(stats.system.TRASH?.threads ?? 0)}</div><div className="text-[11px] text-muted">in trash</div></div>
-                </div>
-                <div><p className="eyebrow mb-1">Inbox tabs</p><TabStack tabs={stats.tabs} /></div>
-                <div><p className="eyebrow mb-1">Received, last 14 days</p><VolumeBars daily={stats.daily} /></div>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-5">
+                <div><p className={label}>Inbox tabs</p><TabStack tabs={stats.tabs} /></div>
+                <div><p className={label}>Received, last 14 days</p><VolumeBars daily={stats.daily} /></div>
               </div>
-              <div><p className="eyebrow mb-2">Largest labels · unread</p><LabelBars labels={stats.labels} /></div>
+              <div><p className={label}>Largest labels · unread</p><LabelBars labels={stats.labels} /></div>
             </div>
-          ) : <p className="text-sm text-muted">No numbers yet. Counting takes about ten seconds and runs automatically after every daily run.</p>}
-          {stats ? <p className="text-[11.5px] text-muted">Counted {when(stats.takenAt)} · {num(stats.profile.messagesTotal)} messages in the account</p> : null}
-        </div>
-        <div className="space-y-4">
-          <Link href="/app/trash" className="card block no-underline transition hover:border-accent">
-            <div className="flex items-center justify-between"><h2 className="flex items-center gap-2 font-bold"><Trash2 size={16} /> What to trash</h2><ArrowRight size={16} className="text-muted" /></div>
-            {senders.length ? (<><p className="display mt-2 text-4xl">{num(reclaimable)}</p><p className="text-sm text-muted">messages from {trashCandidates.length} senders Jev calls disposable and you rarely open. Review and apply in one click.</p></>) : <p className="mt-2 text-sm text-muted">Scan your senders to find out what is safe to throw away.</p>}
+          ) : <p className="m-0 text-sm text-muted">No numbers yet. Counting takes about ten seconds and runs automatically after every daily run.</p>}
+          {stats ? <p className="m-0 text-[12px] text-muted">Counted {when(stats.takenAt)} · {num(stats.profile.messagesTotal)} messages in the account</p> : null}
+        </section>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+          <Link href="/app/trash" className="card block space-y-3 no-underline transition hover:border-ink">
+            <CardTitle icon={Trash2} action={<ArrowRight size={16} className="text-muted" aria-hidden="true" />}>What to trash</CardTitle>
+            {senders.length ? (
+              <>
+                <p className="display m-0 text-[34px] leading-none">{num(reclaimable)}</p>
+                <p className="m-0 text-[13.5px] text-muted">messages from {trashCandidates.length} senders Jev calls disposable and you rarely open.</p>
+              </>
+            ) : <p className="m-0 text-[13.5px] text-muted">Scan your senders to find out what is safe to throw away.</p>}
           </Link>
-          <Link href="/app/senders" className="card block no-underline transition hover:border-accent">
-            <div className="flex items-center justify-between"><h2 className="flex items-center gap-2 font-bold"><Users size={16} /> Senders</h2><ArrowRight size={16} className="text-muted" /></div>
-            <p className="mt-2 text-sm text-muted">{senders.length ? `${senders.length} senders in the last 90 days, ${senders.filter((s) => s.decision).length} with standing decisions.` : "Volume, read rate, and a standing decision for every sender."}</p>
+          <Link href="/app/senders" className="card block space-y-3 no-underline transition hover:border-ink">
+            <CardTitle icon={Users} action={<ArrowRight size={16} className="text-muted" aria-hidden="true" />}>Senders</CardTitle>
+            {senders.length ? (
+              <>
+                <p className="display m-0 text-[34px] leading-none">{num(senders.length)}</p>
+                <p className="m-0 text-[13.5px] text-muted">senders in the last 90 days, {decided} with standing decisions.</p>
+              </>
+            ) : <p className="m-0 text-[13.5px] text-muted">Volume, read rate, and a standing decision for every sender.</p>}
           </Link>
-          <div className="card">
-            <h2 className="flex items-center gap-2 font-bold"><ShieldCheck size={16} /> AI spend</h2>
-            <p className="display mt-2 text-4xl">{usd(Number(agg?.tokens ?? 0) * USD_PER_INPUT_TOKEN)}</p>
-            <p className="text-sm text-muted">{num(Number(agg?.judged ?? 0))} emails judged, each once. Rules are free.</p>
-          </div>
         </div>
       </div>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between"><h2 className="display text-2xl">Needs your attention</h2><Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} /> Find more</Link></div>
+      <section className="space-y-4">
+        <CardTitle icon={Flag} action={<Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} aria-hidden="true" /> Find more</Link>}>Needs your attention</CardTitle>
         {attention.length ? (
-          <ul className="card divide-y divide-line p-0">
+          <ul className="card m-0 list-none divide-y divide-line p-0">
             {attention.map((j) => (
-              <li key={j.messageId} className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-3 text-sm">
-                <div className="min-w-0"><p className="truncate font-semibold">{j.subject ?? "(no subject)"}</p><p className="truncate text-xs text-muted">{j.from}</p></div>
-                <div className="flex items-center gap-2 text-xs text-muted">
+              <li key={j.messageId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="tile tile--sm" aria-hidden="true"><Flag size={14} /></span>
+                  <div className="min-w-0"><p className="m-0 truncate font-bold">{j.subject ?? "(no subject)"}</p><p className="m-0 truncate text-xs text-muted">{j.from}</p></div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span className="chip">{j.judgment.category}</span>
                   <span className="chip chip--accent">action {pct(j.judgment.needsAction)}</span>
                   {j.judgment.timeSensitive >= 0.6 ? <span className="chip chip--warn">time-sensitive</span> : null}
-                  <a className="underline" href={`https://mail.google.com/mail/u/0/#all/${j.threadId ?? j.messageId}`} target="_blank" rel="noreferrer">open</a>
+                  <a className="btn btn-sm" href={`https://mail.google.com/mail/u/0/#all/${j.threadId ?? j.messageId}`} target="_blank" rel="noreferrer">Open <ArrowUpRight size={13} aria-hidden="true" /></a>
                 </div>
               </li>
             ))}
           </ul>
-        ) : <p className="card text-sm text-muted">Nothing flagged in the last two weeks. Flags come from the triage step of each run.</p>}
+        ) : <Empty icon={Flag}>Nothing flagged in the last two weeks. Flags come from the triage step of each run.</Empty>}
       </section>
 
-      <section className="space-y-3">
-        <h2 className="display text-2xl">Runs</h2>
+      <section className="space-y-4">
+        <CardTitle icon={History}>Runs</CardTitle>
         {runs.length ? (
           <div className="card overflow-x-auto p-0">
             <table className="table">
@@ -135,8 +150,12 @@ export default async function Dashboard() {
                 {runs.map((r) => (
                   <tr key={r.id}>
                     <td><Link className="underline" href={`/app/runs/${r.id}`}>{when(r.startedAt)}</Link></td>
-                    <td>{r.mode}</td><td>{r.trigger}</td>
-                    <td>{r.status}{r.error ? <span className="block max-w-xs truncate text-xs text-danger" title={r.error}>{r.error}</span> : null}</td>
+                    <td><span className="inline-flex items-center gap-1.5">{r.mode === "apply" ? <Play size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}{r.mode === "apply" ? "apply" : "preview"}</span></td>
+                    <td>{r.trigger}</td>
+                    <td>
+                      <span className="inline-flex items-center gap-1.5">{r.status === "ok" ? <CheckCircle2 size={13} aria-hidden="true" /> : r.status === "error" ? <XCircle size={13} aria-hidden="true" /> : <Clock size={13} aria-hidden="true" />}{r.status}</span>
+                      {r.error ? <span className="block max-w-xs truncate text-xs text-muted" title={r.error}>{r.error}</span> : null}
+                    </td>
                     <td className="text-right">{num(r.summary?.totalApplied ?? 0)}</td>
                     <td className="text-right">{usd(r.summary?.ai?.estimatedCostUsd ?? 0)}</td>
                     <td className="text-right">{r.mode === "apply" && r.status === "ok" && (r.summary?.totalApplied ?? 0) > 0 ? <UndoButton runId={r.id} /> : null}</td>
@@ -145,11 +164,17 @@ export default async function Dashboard() {
               </tbody>
             </table>
           </div>
-        ) : <p className="card text-sm text-muted">No runs yet. Start with a preview.</p>}
+        ) : <Empty icon={History}>No runs yet. Start with a preview.</Empty>}
       </section>
 
-      <section className="card flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="font-bold">Leave Mailroom</h2><p className="text-sm text-muted">Revokes the Google token and deletes your account, runs, senders, and judgments. Labels already in Gmail stay.</p></div>
+      <section className="card flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <span className="tile tile--sm" aria-hidden="true"><LogOut size={16} /></span>
+          <div>
+            <h2 className="m-0 text-[15px] font-bold tracking-normal">Leave Mailroom</h2>
+            <p className="m-0 mt-1 text-[13.5px] text-muted">Revokes the Google token and deletes your account, runs, senders, and judgments. Labels already in Gmail stay.</p>
+          </div>
+        </div>
         <DisconnectButton />
       </section>
     </div>
