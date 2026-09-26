@@ -17,6 +17,8 @@ export type CompiledQuery = {
   senders: string[];
   flags: string[];
   topic: string;
+  /** The user asked how many, not which. */
+  count: boolean;
   /** Rerank hints for the result stage. */
   rerank: { relevance: boolean; needsReply: boolean; human: boolean; disposable: boolean };
   usage: { inputTokens: number; requests: number };
@@ -124,7 +126,7 @@ export async function compileSearch(input: string, ctx: { now?: Date; knownSende
 
   const questions = {
     category: choice({ question: "Which mailbox category does the search ask for? Choose `any` when the query names none.", note: "Receipts covers orders, rides, food delivery, shipping. Recruiting covers job outreach. Accounts & Security covers codes and sign-in alerts." }, categoryCriteria),
-    time_window: choice("Which time window does the query ask for? `today` is `today`; the query text is the only evidence.", TIME_WINDOWS as unknown as Record<string, string>),
+    time_window: choice({ question: "Which time window does the query ask for? Choose `any` unless the query itself mentions a time such as today, this week, last month, or a year.", note: "`current_date` is only context for resolving relative words; it is not evidence that the user asked about today." }, TIME_WINDOWS as unknown as Record<string, string>),
     ...(senders.length ? {
       sender: choice({ question: "Which candidate sender, if any, does the query refer to? Candidates were found by matching words of the query against known senders; pick `none` when the match is coincidental.", candidates: senders.map((s, i) => ({ id: `s${i}`, domain: s.domain, name: s.name ?? null })) },
         { none: "No candidate is what the user means.", ...Object.fromEntries(senders.map((s, i) => [`s${i}`, `${s.name ? s.name + ", " : ""}${s.domain}`])) }),
@@ -132,10 +134,10 @@ export async function compileSearch(input: string, ctx: { now?: Date; knownSende
     topic_literal: noul("Does the query name a specific subject, product, place, or phrase that should be matched as words in the email text, beyond category, sender, time, and status words?", { true: "There is a concrete topic to search for as text.", false: "The query is only about kind, sender, time, or status." }),
     wants_reply: noul("Is the user looking for mail that still needs their reply or action?", { true: "They want things they owe a response to.", false: "Not about replies or pending action." }),
     wants_people: noul("Does the user want mail written by real people rather than automated senders?", { true: "Humans only, not newsletters, notifications, or campaigns.", false: "No preference about human versus automated." }),
-    wants_trash: noul("Is the user asking what could be thrown away, cleaned up, or safely trashed?", { true: "A cleanup or disposal intent.", false: "Ordinary retrieval." }),
+    wants_count: noul("Is the user asking for a number, such as how many messages match?", { true: "A count is the answer they want.", false: "They want to see the messages." }),
   } as const;
 
-  const res = await ts().systemOne({ state: { query: q, today: now.toISOString().slice(0, 10), weekday: now.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }), candidate_senders: senders.map((s, i) => ({ id: `s${i}`, domain: s.domain, name: s.name ?? null })), residual_terms: topic || null }, questions });
+  const res = await ts().systemOne({ state: { query: q, current_date: now.toISOString().slice(0, 10), weekday: now.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }), candidate_senders: senders.map((s, i) => ({ id: `s${i}`, domain: s.domain, name: s.name ?? null })), residual_terms: topic || null }, questions });
   const a = res.answers as Record<string, { type: string; choice?: string; confidence?: number; noul?: number }>;
 
   // Category
@@ -159,7 +161,8 @@ export async function compileSearch(input: string, ctx: { now?: Date; knownSende
   let timeWindow: TimeWindow | "explicit" = "any";
   if (explicit) { clauses.push(explicit.gmail); parts.push({ kind: "time", label: "When", value: explicit.label, source: "rule" }); timeWindow = "explicit"; }
   else {
-    const tw = (a.time_window?.choice ?? "any") as TimeWindow;
+    const twConf = a.time_window?.confidence ?? 0;
+    const tw = (twConf >= 0.5 ? (a.time_window?.choice ?? "any") : "any") as TimeWindow;
     const g = timeToGmail(tw, now);
     if (g) { clauses.push(g); parts.push({ kind: "time", label: "When", value: tw.replace(/_/g, " "), source: "ai" }); }
     timeWindow = tw;
@@ -169,7 +172,6 @@ export async function compileSearch(input: string, ctx: { now?: Date; knownSende
   const flagSet = new Set(flags);
   if ((a.wants_reply?.noul ?? 0) >= 0.65) flagSet.add("needsReply");
   if ((a.wants_people?.noul ?? 0) >= 0.6) flagSet.add("fromPeople");
-  if ((a.wants_trash?.noul ?? 0) >= 0.7) flagSet.add("trashCandidates");
   for (const f of flagSet) {
     switch (f) {
       case "unread": clauses.push("is:unread"); parts.push({ kind: "flag", label: "Status", value: "unread", source: "rule" }); break;
@@ -182,7 +184,7 @@ export async function compileSearch(input: string, ctx: { now?: Date; knownSende
       case "large": clauses.push("larger:5M"); parts.push({ kind: "flag", label: "Size", value: "over 5 MB", source: "rule" }); break;
       case "needsReply": clauses.push("-from:me"); if (!flagSet.has("unread")) clauses.push("category:primary"); parts.push({ kind: "flag", label: "Intent", value: "needs my reply (Jev ranks)", source: "ai" }); break;
       case "fromPeople": clauses.push("-category:promotions -category:social -category:updates -category:forums"); parts.push({ kind: "flag", label: "Intent", value: "from real people (Jev filters)", source: "ai" }); break;
-      case "trashCandidates": clauses.push("-is:starred -in:trash"); if (!explicit && timeWindow === "any") clauses.push("older_than:30d"); parts.push({ kind: "flag", label: "Intent", value: "safe to trash (Jev scores)", source: "ai" }); break;
+      case "trashCandidates": clauses.push("-is:starred"); parts.push({ kind: "flag", label: "Intent", value: "disposable (Jev scores)", source: "rule" }); break;
     }
   }
   if (flagSet.has("inTrash")) { /* keep */ } else if (!clauses.some((c) => c.includes("in:trash"))) clauses.push("-in:trash");
@@ -194,6 +196,7 @@ export async function compileSearch(input: string, ctx: { now?: Date; knownSende
   return {
     input: q, gmail: clauses.join(" ").replace(/\s+/g, " ").trim(), parts,
     category: cat === "other" ? "any" : cat, timeWindow, senders: senderDomains, flags: [...flagSet], topic: literal ? topic : "",
+    count: (a.wants_count?.noul ?? 0) >= 0.6 || /\bhow many\b|\bcount\b|\bnumber of\b/i.test(q),
     rerank: { relevance: literal, needsReply: flagSet.has("needsReply"), human: flagSet.has("fromPeople"), disposable: flagSet.has("trashCandidates") },
     usage: { inputTokens: res.usage.input_tokens, requests: 1 }, model: res.model,
   };

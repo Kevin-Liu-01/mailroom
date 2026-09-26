@@ -26,7 +26,10 @@ export async function POST(req: Request) {
       compiled = await compileSearch(body.q, { knownSenders: known, hasLabel: (n) => labelNames.has(n) });
       gmailQuery = compiled.gmail;
     }
-    const ids = await gmail.listMessageIds(gmailQuery, limit);
+    const countMode = Boolean(compiled?.count);
+    // Counting lists ids only (cheap, 500 per page) up to a cap; showing fetches metadata for the page of results.
+    const allIds = await gmail.listMessageIds(gmailQuery, countMode ? 5000 : limit);
+    const ids = allIds.slice(0, countMode ? Math.min(limit, 60) : limit);
     const metas = (await mapLimit(ids, 8, (id) => gmail.getMessageMeta(id).catch(() => null))).filter((m): m is NonNullable<typeof m> => Boolean(m));
     let inputTokens = compiled?.usage.inputTokens ?? 0;
     let ranked = new Map<string, Ranked>();
@@ -35,6 +38,21 @@ export async function POST(req: Request) {
       ranked = r.ranked; inputTokens += r.inputTokens;
     }
     const idToLabel = new Map((await gmail.listLabels()).map((l) => [l.id, l.name]));
+    const domainOf = (from: string) => (from.match(/@([^>\s]+)/)?.[1] ?? from).toLowerCase();
+    const bySender = new Map<string, number>();
+    const byLabel = new Map<string, number>();
+    let unread = 0;
+    for (const m of metas) {
+      if (m.labelIds.includes("UNREAD")) unread++;
+      const d = domainOf(m.headers["from"] ?? "");
+      bySender.set(d, (bySender.get(d) ?? 0) + 1);
+      for (const l of m.labelIds) { if (!l.startsWith("CATEGORY_") && !["UNREAD", "INBOX", "IMPORTANT", "STARRED", "SENT"].includes(l)) { const n = idToLabel.get(l) ?? l; byLabel.set(n, (byLabel.get(n) ?? 0) + 1); } }
+    }
+    const numbers = {
+      total: allIds.length, capped: allIds.length >= 5000, sampled: metas.length, unread,
+      senders: [...bySender.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([domain, count]) => ({ domain, count })),
+      labels: [...byLabel.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([label, count]) => ({ label, count })),
+    };
     const results = metas.map((m) => ({
       id: m.id, threadId: m.threadId,
       from: m.headers["from"] ?? "", subject: m.headers["subject"] ?? "(no subject)", date: m.internalDate ? new Date(Number(m.internalDate)).toISOString() : null,
@@ -52,9 +70,9 @@ export async function POST(req: Request) {
         if (compiled!.rerank.relevance && s.relevance !== undefined && s.relevance < 0.2) return false;
         return true;
       });
-      return NextResponse.json({ compiled, gmail: gmailQuery, total: ids.length, results: filtered, dropped: results.length - filtered.length, cost: { inputTokens, usd: inputTokens * USD_PER_INPUT_TOKEN } });
+      return NextResponse.json({ compiled, gmail: gmailQuery, total: allIds.length, numbers, results: filtered, dropped: results.length - filtered.length, cost: { inputTokens, usd: inputTokens * USD_PER_INPUT_TOKEN } });
     }
-    return NextResponse.json({ compiled: null, gmail: gmailQuery, total: ids.length, results, dropped: 0, cost: { inputTokens: 0, usd: 0 } });
+    return NextResponse.json({ compiled: null, gmail: gmailQuery, total: allIds.length, numbers, results, dropped: 0, cost: { inputTokens: 0, usd: 0 } });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }

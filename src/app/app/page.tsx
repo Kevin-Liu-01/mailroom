@@ -63,7 +63,7 @@ export default async function Dashboard() {
 
       {firstTime ? (
         <div className="card card--surface space-y-2">
-          <h2 className="text-xl font-bold">First run: preview, then apply.</h2>
+          <h2 className="display text-2xl">First run: preview, then apply.</h2>
           <p className="text-[15px] text-muted">Preview changes nothing. Apply does the work and writes an undoable receipt.</p>
         </div>
       ) : null}
@@ -77,9 +77,9 @@ export default async function Dashboard() {
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-md bg-surface p-2"><div className="text-xl font-bold">{num(stats.inbox.threads)}</div><div className="text-[11px] text-muted">inbox threads</div></div>
-                  <div className="rounded-md bg-surface p-2"><div className="text-xl font-bold">{num(stats.inbox.unread)}</div><div className="text-[11px] text-muted">unread</div></div>
-                  <div className="rounded-md bg-surface p-2"><div className="text-xl font-bold">{num(stats.system.TRASH?.threads ?? 0)}</div><div className="text-[11px] text-muted">in trash</div></div>
+                  <div className="rounded-md bg-surface p-2"><div className="display text-2xl">{num(stats.inbox.threads)}</div><div className="text-[11px] text-muted">inbox threads</div></div>
+                  <div className="rounded-md bg-surface p-2"><div className="display text-2xl">{num(stats.inbox.unread)}</div><div className="text-[11px] text-muted">unread</div></div>
+                  <div className="rounded-md bg-surface p-2"><div className="display text-2xl">{num(stats.system.TRASH?.threads ?? 0)}</div><div className="text-[11px] text-muted">in trash</div></div>
                 </div>
                 <div><p className="eyebrow mb-1">Inbox tabs</p><TabStack tabs={stats.tabs} /></div>
                 <div><p className="eyebrow mb-1">Received, last 14 days</p><VolumeBars daily={stats.daily} /></div>
@@ -92,7 +92,7 @@ export default async function Dashboard() {
         <div className="space-y-4">
           <Link href="/app/trash" className="card block no-underline transition hover:border-accent">
             <div className="flex items-center justify-between"><h2 className="flex items-center gap-2 font-bold"><Trash2 size={16} /> What to trash</h2><ArrowRight size={16} className="text-muted" /></div>
-            {senders.length ? (<><p className="mt-2 text-3xl font-bold">{num(reclaimable)}</p><p className="text-sm text-muted">messages from {trashCandidates.length} senders Jev calls disposable and you rarely open. Review and apply in one click.</p></>) : <p className="mt-2 text-sm text-muted">Scan your senders to find out what is safe to throw away.</p>}
+            {senders.length ? (<><p className="display mt-2 text-4xl">{num(reclaimable)}</p><p className="text-sm text-muted">messages from {trashCandidates.length} senders Jev calls disposable and you rarely open. Review and apply in one click.</p></>) : <p className="mt-2 text-sm text-muted">Scan your senders to find out what is safe to throw away.</p>}
           </Link>
           <Link href="/app/senders" className="card block no-underline transition hover:border-accent">
             <div className="flex items-center justify-between"><h2 className="flex items-center gap-2 font-bold"><Users size={16} /> Senders</h2><ArrowRight size={16} className="text-muted" /></div>
@@ -100,14 +100,14 @@ export default async function Dashboard() {
           </Link>
           <div className="card">
             <h2 className="flex items-center gap-2 font-bold"><ShieldCheck size={16} /> AI spend</h2>
-            <p className="mt-2 text-3xl font-bold">{usd(Number(agg?.tokens ?? 0) * USD_PER_INPUT_TOKEN)}</p>
+            <p className="display mt-2 text-4xl">{usd(Number(agg?.tokens ?? 0) * USD_PER_INPUT_TOKEN)}</p>
             <p className="text-sm text-muted">{num(Number(agg?.judged ?? 0))} emails judged, each once. Rules are free.</p>
           </div>
         </div>
       </div>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between"><h2 className="text-xl font-bold">Needs your attention</h2><Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} /> Find more</Link></div>
+        <div className="flex items-center justify-between"><h2 className="display text-2xl">Needs your attention</h2><Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} /> Find more</Link></div>
         {attention.length ? (
           <ul className="card divide-y divide-line p-0">
             {attention.map((j) => (
@@ -126,7 +126,7 @@ export default async function Dashboard() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-bold">Runs</h2>
+        <h2 className="display text-2xl">Runs</h2>
         {runs.length ? (
           <div className="card overflow-x-auto p-0">
             <table className="table">

@@ -11,8 +11,8 @@ export type SenderRow = {
 };
 
 const REC_LABEL: Record<SenderRow["recommendation"]["rec"], { text: string; cls: string }> = {
-  "trash-all": { text: "trash all", cls: "chip--danger" },
-  "trash-old": { text: "trash after 30d", cls: "chip--warn" },
+  "trash-all": { text: "could trash all", cls: "chip--warn" },
+  "trash-old": { text: "could trash after 30d", cls: "chip--warn" },
   protect: { text: "protect", cls: "chip--accent" },
   keep: { text: "keep", cls: "" },
 };
@@ -49,16 +49,6 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
     await fetch(`/api/runs/${lastRun}/undo`, { method: "POST" });
     setLastRun(null); setMsg("Undone."); router.refresh();
   }
-  async function trashAllShown() {
-    const targets = shown.filter((r) => r.recommendation.rec.startsWith("trash") && !r.decision?.startsWith("trash"));
-    if (!targets.length) return;
-    if (!confirm(`Apply the recommendation for ${targets.length} senders (${num(reclaimable)} messages)? Each becomes a standing rule and is undoable.`)) return;
-    setBusy("*");
-    for (const r of targets) {
-      await fetch("/api/senders/decide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain: r.domain, decision: r.recommendation.rec, applyNow: true, trashAfterDays: 30 }) });
-    }
-    setBusy(null); setMsg(`Applied ${targets.length} sender decisions.`); router.refresh();
-  }
 
   return (
     <div className="space-y-3">
@@ -69,7 +59,7 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
           ))}
         </div>
         <input className="input ml-auto max-w-xs" style={{ minHeight: 36 }} placeholder="filter senders" value={query} onChange={(e) => setQuery(e.target.value)} />
-        {mode === "trash" ? <button className="btn-danger btn-sm" disabled={busy !== null || !reclaimable} onClick={trashAllShown}><Trash2 size={14} /> Apply all recommendations ({num(reclaimable)} msgs)</button> : null}
+        {mode === "trash" ? <span className="text-xs text-muted">{num(reclaimable)} messages across the recommended senders. Nothing happens until you click a row.</span> : null}
       </div>
       <div className="flex min-h-5 items-center gap-2 text-xs text-muted">{msg ? <span className="flex items-center gap-1"><Check size={13} /> {msg}</span> : null}{lastRun ? <button className="btn btn-sm" onClick={undo}><Undo2 size={13} /> Undo last</button> : null}</div>
       <div className="card overflow-x-auto p-0">

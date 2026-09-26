@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Mailroom: black ink on white paper, one typeface (Berkeley Mono), emphasis by weight, fill and hatching. No color. */
+/* Mailroom: black ink on white paper. Inter for headings, Berkeley Mono for everything else. Emphasis by weight, fill and hatching. No color. */
 :root {
   --page: #ffffff;
   --ink: #0a0a0a;
@@ -57,6 +57,7 @@
   --color-danger-soft: var(--danger-soft);
   --font-sans: var(--font-berkeley), ui-monospace, "SF Mono", Menlo, monospace;
   --font-mono: var(--font-berkeley), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -67,7 +68,8 @@ a { color: inherit; text-underline-offset: 4px; text-decoration-thickness: 1px; 
 button { cursor: pointer; }
 ::selection { color: var(--page); background: var(--ink); }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-h1, h2, h3 { text-wrap: balance; margin-top: 0; letter-spacing: -0.01em; font-weight: 700; }
+h1, h2, h3, .display { font-family: var(--font-display); text-wrap: balance; margin-top: 0; letter-spacing: -0.035em; font-weight: 700; font-feature-settings: "cv11", "ss03"; }
+h1 { letter-spacing: -0.045em; }
 svg { flex-shrink: 0; }
 
 /* Frame: every top-level band shares the same inline rules. */
@@ -134,3 +136,5 @@ svg { flex-shrink: 0; }
 .rise-2 { animation-delay: .08s; } .rise-3 { animation-delay: .16s; } .rise-4 { animation-delay: .24s; } .rise-5 { animation-delay: .32s; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .signal, .rise, .rise-2, .rise-3, .rise-4, .rise-5, .cursor::after { animation: none; } }
+
+@media (prefers-reduced-motion: reduce) { .travel { display: none; } }

@@ -9,7 +9,7 @@ export const PRESETS = [
   { label: "Receipts this month", q: "receipts from the last 30 days" },
   { label: "Recruiters I never answered", q: "recruiters I never answered" },
   { label: "Security codes", q: "verification codes and sign-in alerts" },
-  { label: "Safe to trash", q: "what can I trash" },
+  { label: "How many unread this week", q: "how many unread messages this week" },
   { label: "Big attachments", q: "large attachments older than 6 months" },
 ];
 

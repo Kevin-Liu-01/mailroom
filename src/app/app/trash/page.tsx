@@ -36,9 +36,9 @@ export default async function TrashPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="card"><p className="eyebrow">Sender recommendations</p><p className="mt-1 text-3xl font-bold">{candidates.length}</p><p className="text-sm text-muted">senders, {num(reclaimable)} messages reclaimable</p></div>
-        <div className="card"><p className="eyebrow">Disposable messages</p><p className="mt-1 text-3xl font-bold">{disposable.length}</p><p className="text-sm text-muted">judged ≥ 80% disposable in the last 60 days, not yet trashed</p></div>
-        <div className="card"><p className="eyebrow">Standing trash rules</p><p className="mt-1 text-3xl font-bold">{trashRules.length}</p><p className="text-sm text-muted">run daily, capped at {num(mb.policy.aging.maxTrashPerRule)} per rule</p></div>
+        <div className="card"><p className="eyebrow">Sender recommendations</p><p className="display mt-1 text-4xl">{candidates.length}</p><p className="text-sm text-muted">senders, {num(reclaimable)} messages reclaimable</p></div>
+        <div className="card"><p className="eyebrow">Disposable messages</p><p className="display mt-1 text-4xl">{disposable.length}</p><p className="text-sm text-muted">judged ≥ 80% disposable in the last 60 days, not yet trashed</p></div>
+        <div className="card"><p className="eyebrow">Standing trash rules</p><p className="display mt-1 text-4xl">{trashRules.length}</p><p className="text-sm text-muted">run daily, capped at {num(mb.policy.aging.maxTrashPerRule)} per rule</p></div>
       </div>
 
       <section className="space-y-3">
@@ -50,13 +50,13 @@ export default async function TrashPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-bold">Disposable messages from triage</h2>
+        <h2 className="display text-2xl">Disposable messages from triage</h2>
         <p className="text-sm text-muted">Judged disposable by triage. Select and trash, or let the aging rules catch them.</p>
         <DisposableList items={disposable.map((j) => ({ id: j.messageId, threadId: j.threadId, from: j.from, subject: j.subject, receivedAt: j.receivedAt?.toISOString() ?? null, category: j.judgment.category, disposable: j.judgment.disposable ?? 0 }))} />
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-bold">Standing rules</h2>
+        <h2 className="display text-2xl">Standing rules</h2>
         <div className="card p-0">
           <table className="table">
             <thead><tr><th>Rule</th><th>Gmail search</th><th className="text-right">Last run matched</th></tr></thead>

@@ -9,7 +9,8 @@ import { TrashDiagram } from "@/components/landing/TrashDiagram";
 import { JudgmentCard } from "@/components/landing/JudgmentCard";
 import { ClosingBand } from "@/components/landing/ClosingBand";
 import { ReticleSpacer } from "@/components/landing/Section";
-import { CATEGORIES, defaultPolicy } from "@/lib/policy/schema";
+import { LabelGrid } from "@/components/landing/LabelGrid";
+import { defaultPolicy } from "@/lib/policy/schema";
 import { ESTIMATED_TOKENS_PER_MESSAGE, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
 
 export const dynamic = "force-dynamic";
@@ -23,11 +24,10 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
   const policy = defaultPolicy();
   const perThousand = 1000 * ESTIMATED_TOKENS_PER_MESSAGE * USD_PER_INPUT_TOKEN;
   const cta = session?.user ? <Link href="/app" className="btn-primary text-[15px]">Open your dashboard <ArrowRight size={16} /></Link> : <SignInButton label="Connect Gmail" />;
-  const tag = (id: string) => policy.categories.skipInbox.includes(id as never) ? "skips inbox" : policy.categories.protected.includes(id as never) ? "protected" : policy.categories.neverImportant.includes(id as never) ? "not important" : "stays";
 
   return (
     <div>
-      <section id="hero" className="section relative grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+      <section id="hero" className="section relative grid items-center gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14">
         <div className="dither" aria-hidden="true" />
         <div className="relative">
           <h1 className="rise text-[clamp(44px,6.4vw,92px)] font-bold leading-[0.98] tracking-[-0.04em]">
@@ -78,14 +78,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
 
       <section id="policy" className="section">
         <h2 className={h2}>Thirteen labels.<br /><span className="text-muted">Nothing custom.</span></h2>
-        <ul className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {CATEGORIES.filter((c) => c.label).map((c) => (
-            <li key={c.id} className="card flex items-center justify-between gap-3 py-5">
-              <span className="text-[19px] font-bold leading-tight">{c.label}</span>
-              <span className={`chip ${tag(c.id) === "skips inbox" ? "chip--accent" : ""}`}>{tag(c.id)}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-12"><LabelGrid policy={policy} /></div>
         <p className={lede}>Never sends. Never unsubscribes. Never deletes for good. Never trashes work, people, or money.</p>
       </section>
 
@@ -110,7 +103,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
             [`$${policy.ai.budgetUsdPerRun.toFixed(2)}`, "cap per run, yours to change"],
           ].map(([n, t]) => (
             <div key={t} className="card py-8">
-              <div className="text-[clamp(40px,5vw,64px)] font-bold leading-none tracking-[-0.03em]">{n}</div>
+              <div className="display text-[clamp(44px,5.5vw,72px)] leading-none">{n}</div>
               <div className="mt-3 text-[16px] text-muted">{t}</div>
             </div>
           ))}
@@ -121,7 +114,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
 
       <section id="trust" className="section">
         <h2 className={h2}>Your mail stays<br /><span className="text-muted">in Google.</span></h2>
-        <ul className="mt-12 grid gap-4 text-[clamp(18px,2vw,26px)] font-bold leading-tight sm:grid-cols-2">
+        <ul className="display mt-12 grid gap-4 text-[clamp(20px,2.2vw,28px)] leading-tight sm:grid-cols-2">
           <li className="card py-7">Bodies never leave Google.</li>
           <li className="card py-7">Tokens encrypted at rest.</li>
           <li className="card py-7">Trash keeps 30 days. Undo keeps more.</li>
