@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, ListChecks, Loader2, Play } from "lucide-react";
+import { ConfirmButton } from "@/components/Confirm";
 import type { RunSummary } from "@/db/schema";
 import { usd, num } from "@/lib/format";
 
@@ -13,7 +14,6 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
   const [result, setResult] = useState<Result | null>(null);
 
   async function run(mode: "dry-run" | "apply") {
-    if (mode === "apply" && !confirm("Apply the policy to your mailbox now? Every change is recorded and can be undone from the run list.")) return;
     setBusy(mode);
     setResult(null);
     try {
@@ -42,10 +42,17 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
             {busy === "dry-run" ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
             {busy === "dry-run" ? "Previewing…" : "Preview"}
           </button>
-          <button className="btn-primary" disabled={disabled || busy !== null} onClick={() => run("apply")}>
-            {busy === "apply" ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}
-            {busy === "apply" ? "Applying…" : "Apply now"}
-          </button>
+          <ConfirmButton
+            className="btn-primary"
+            icon={busy === "apply" ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}
+            label="Apply now"
+            confirmLabel="Apply"
+            message="Every change is recorded and can be undone from the run list."
+            onConfirm={() => run("apply")}
+            disabled={disabled || busy !== null}
+            busy={busy === "apply"}
+            busyLabel="Applying…"
+          />
         </div>
       </div>
       {busy ? <p className="m-0 text-sm text-muted">Talking to Gmail{busy === "apply" ? " and TypeSafe" : ""}. Large mailboxes take a minute or two.</p> : null}

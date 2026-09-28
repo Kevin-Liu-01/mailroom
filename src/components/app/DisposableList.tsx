@@ -1,4 +1,5 @@
 "use client";
+import { ConfirmButton } from "@/components/Confirm";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Trash2, Undo2 } from "lucide-react";
@@ -15,7 +16,7 @@ export function DisposableList({ items }: { items: Item[] }) {
   function toggle(id: string) { const n = new Set(selected); if (n.has(id)) n.delete(id); else n.add(id); setSelected(n); }
   async function trash() {
     const ids = items.filter((i) => selected.has(i.id)).map((i) => i.id);
-    if (!ids.length || !confirm(`Trash ${ids.length} messages? Recoverable for 30 days and undoable.`)) return;
+    if (!ids.length) return;
     setBusy(true);
     const res = await fetch("/api/messages/modify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, action: "trash" }) });
     const json = (await res.json()) as { runId?: string; messages?: number; error?: string };
@@ -27,7 +28,7 @@ export function DisposableList({ items }: { items: Item[] }) {
     <div className="card p-0">
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5 text-sm">
         <label className="flex items-center gap-2"><input type="checkbox" checked={selected.size === items.length} onChange={() => setSelected(selected.size === items.length ? new Set() : new Set(items.map((i) => i.id)))} /> {selected.size} selected</label>
-        <button className="btn btn-sm btn-danger" disabled={busy || !selected.size} onClick={trash}><Trash2 size={14} /> Trash selected</button>
+        <ConfirmButton className="btn btn-sm btn-danger" armedClassName="btn-danger btn-sm" disabled={busy || !selected.size} busy={busy} busyLabel="Trashing…" icon={<Trash2 size={14} aria-hidden="true" />} label="Trash selected" confirmLabel={`Trash ${selected.size}`} message="Recoverable for 30 days, undoable." onConfirm={trash} />
         <span className="ml-auto text-xs text-muted">{msg}</span>
         {lastRun ? <button className="btn btn-sm" onClick={undo}><Undo2 size={13} /> Undo</button> : null}
       </div>

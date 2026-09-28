@@ -1,4 +1,5 @@
 "use client";
+import { ConfirmButton } from "@/components/Confirm";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ExternalLink, RefreshCw, Shield, Trash2, Undo2, UserRound } from "lucide-react";
@@ -35,7 +36,6 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
   const reclaimable = useMemo(() => shown.filter((r) => r.recommendation.rec.startsWith("trash")).reduce((n, r) => n + r.messages, 0), [shown]);
 
   async function decide(domain: string, decision: SenderDecision, applyNow = false, trashAfterDays = 30) {
-    if (applyNow && !confirm(`Trash ${decision === "trash-all" ? "every message" : "messages older than 30 days"} from ${domain} now? Recoverable for 30 days and undoable.`)) return;
     setBusy(domain); setMsg(null);
     const res = await fetch("/api/senders/decide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain, decision, applyNow, trashAfterDays }) });
     const json = (await res.json()) as { applied?: { runId: string; messages: number } | null; error?: string };
@@ -96,8 +96,8 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
                     <div className="flex flex-wrap justify-end gap-1">
                       {r.recommendation.rec !== "protect" || r.decision ? null : null}
                       <button className="btn btn-sm" disabled={busy !== null} title="Never trash or archive this sender" onClick={() => decide(r.domain, "protect")}><Shield size={13} /></button>
-                      <button className="btn btn-sm" disabled={busy !== null} title="Trash mail older than 30 days now and every day" onClick={() => decide(r.domain, "trash-old", true)}>30d <Trash2 size={13} /></button>
-                      <button className="btn btn-sm btn-danger" disabled={busy !== null} title="Trash everything from this sender now and in future" onClick={() => decide(r.domain, "trash-all", true)}>all <Trash2 size={13} /></button>
+                      <ConfirmButton className="btn btn-sm" armedClassName="btn-primary btn-sm" disabled={busy !== null} label={<>30d <Trash2 size={13} /></>} confirmLabel="Trash older than 30d" onConfirm={() => decide(r.domain, "trash-old", true)} />
+                      <ConfirmButton className="btn btn-sm btn-danger" armedClassName="btn-danger btn-sm" disabled={busy !== null} label={<>all <Trash2 size={13} /></>} confirmLabel="Trash all from this sender" onConfirm={() => decide(r.domain, "trash-all", true)} />
                       {mode === "all" ? <button className="btn btn-sm" disabled={busy !== null} title="A person: label Personal and keep important" onClick={() => decide(r.domain, "family")}><UserRound size={13} /></button> : null}
                       {unsub ? <a className="btn btn-sm" href={unsub} target="_blank" rel="noreferrer" title="Open the sender's unsubscribe link (you click it, Mailroom never does)"><ExternalLink size={13} /></a> : null}
                     </div>

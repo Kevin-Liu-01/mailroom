@@ -1,4 +1,5 @@
 "use client";
+import { ConfirmButton } from "@/components/Confirm";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Bookmark, Check, ExternalLink, Inbox, MailOpen, Star, Tag, Trash2, Undo2 } from "lucide-react";
@@ -51,7 +52,6 @@ export function SearchResults({ q }: { q: string }) {
   async function act(action: string, label?: string) {
     const ids = [...selected];
     if (!ids.length) return;
-    if (action === "trash" && !confirm(`Move ${ids.length} message${ids.length > 1 ? "s" : ""} to Trash? Gmail keeps them 30 days, and this is undoable here.`)) return;
     setLoading(true);
     const res = await fetch("/api/messages/modify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, action, label }) });
     const json = (await res.json()) as { runId?: string; messages?: number; error?: string };
@@ -68,12 +68,14 @@ export function SearchResults({ q }: { q: string }) {
     setLastRun(null); setMsg("Undone.");
     await run(rawMode ? { gmail: raw } : { q });
   }
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
   async function save() {
     if (!data?.gmail) return;
-    const name = prompt("Name this search", q.slice(0, 60));
-    if (!name) return;
-    await fetch("/api/searches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, naturalQuery: q, gmailQuery: data.gmail }) });
-    setMsg("Saved."); router.refresh();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await fetch("/api/searches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: trimmed, naturalQuery: q, gmailQuery: data.gmail }) });
+    setNaming(false); setMsg("Saved."); router.refresh();
   }
 
   const n = data?.numbers;
@@ -125,7 +127,15 @@ export function SearchResults({ q }: { q: string }) {
               <>
                 <code className="rounded bg-surface px-2 py-1">{data.gmail}</code>
                 <button className="btn btn-sm" type="button" onClick={() => setRawMode(true)}>Edit</button>
-                <button className="btn btn-sm" type="button" onClick={save}><Bookmark size={13} /> Save</button>
+                {naming ? (
+                  <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+                    <input className="input" style={{ minHeight: 32, width: 220, fontSize: 12.5 }} value={name} onChange={(e) => setName(e.target.value)} placeholder="name this search" autoFocus />
+                    <button className="btn-primary btn-sm" type="submit" disabled={!name.trim()}>Save</button>
+                    <button className="btn btn-sm" type="button" onClick={() => setNaming(false)}>Cancel</button>
+                  </form>
+                ) : (
+                  <button className="btn btn-sm" type="button" onClick={() => { setName(q.slice(0, 60)); setNaming(true); }}><Bookmark size={13} /> Save</button>
+                )}
                 <span className="ml-auto text-muted">Jev {usd(data.cost.usd)}{data.dropped ? ` · ${data.dropped} filtered out` : ""}</span>
               </>
             )}
@@ -146,7 +156,7 @@ export function SearchResults({ q }: { q: string }) {
                 <input className="input" style={{ minHeight: 32, width: 150, padding: "2px 8px", fontSize: 12.5 }} placeholder="label name" value={labelName} onChange={(e) => setLabelName(e.target.value)} />
                 <button className="btn btn-sm" disabled={!selected.size || loading || !labelName.trim()} onClick={() => act("label", labelName.trim())}><Tag size={13} /> Label</button>
               </span>
-              <button className="btn btn-sm" disabled={!selected.size || loading} onClick={() => act("trash")}><Trash2 size={13} /> Trash</button>
+              <ConfirmButton className="btn btn-sm" armedClassName="btn-primary btn-sm" disabled={!selected.size || loading} icon={<Trash2 size={13} aria-hidden="true" />} label="Trash" confirmLabel={`Trash ${selected.size}`} message="Gmail keeps them 30 days, undoable here." onConfirm={() => act("trash")} />
             </div>
             <div className="ml-auto flex items-center gap-2 text-xs text-muted">
               {msg ? <span className="flex items-center gap-1"><Check size={13} /> {msg}</span> : null}
