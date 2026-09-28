@@ -1,5 +1,11 @@
 # Google OAuth verification: the demo video
 
+**Status (2026-09-28):** submitted. The demo video is https://youtu.be/mKZpCdDcXH0 (unlisted, 52 s, recorded from
+the live site with the owner's account), the Verification Center shows "Your app's data access is under review",
+and both questionnaire acknowledgements (requirements read; CASA required for restricted scopes) were accepted.
+The `Additional info` text below was sent with it. If Google asks for a new recording, the shot list still applies;
+the source clips are `~/Downloads/mailroom-demo-part{1,2}.gif` and the cut is `~/Downloads/mailroom-demo.mp4`.
+
 Everything else in the Verification Center is complete (branding verified, scopes justified, privacy and
 terms pages live). The one missing field is **Video link**: an unlisted YouTube video that shows the OAuth
 consent flow and how each Gmail scope is used. Google's reviewers watch for three things: the consent screen
