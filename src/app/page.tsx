@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { ArrowDown, ArrowRight, BadgeDollarSign, BrainCircuit, Coins, Gauge, History, KeyRound, Lock, LogOut, Search, ShieldCheck, Tags, Trash2, Undo2, Workflow } from "lucide-react";
+import { ArrowDown, ArrowRight, BadgeDollarSign, BrainCircuit, Coins, Gauge, History, KeyRound, Lock, LogOut, Search, ShieldAlert, ShieldCheck, Tags, Trash2, Undo2, Workflow } from "lucide-react";
 import { auth } from "@/auth";
 import { GmailMark } from "@/components/GmailMark";
 import { SignInButton } from "@/components/SignInButton";
@@ -45,13 +45,16 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
           </h1>
           <p className={`rise rise-2 ${lede}`}>Rules you can read. Typed AI judgments for pennies. A straight answer to what to trash.</p>
           {error === "scope" ? (
-            <p className="mt-5 max-w-[560px] border border-ink p-4 text-[15px]">Sign in again and leave the Gmail box checked. Mailroom never sends or deletes anything.</p>
+            <p className="mt-5 max-w-[560px] border border-ink p-4 text-[15px]">Sign in again and leave both Gmail boxes checked. If Google says the app is unverified, click Advanced, then Go to mailroom. Mailroom never sends or deletes anything.</p>
           ) : null}
           <div className="rise rise-3 mt-8 flex flex-wrap gap-3">
             {cta}
             <a href="#how" className="btn text-[15px]">How it works <ArrowDown size={16} aria-hidden="true" /></a>
           </div>
           <p className="rise rise-4 mt-6 inline-flex items-center gap-2 text-[14px] text-muted"><Undo2 size={15} aria-hidden="true" /> Every run previews first and can be undone.</p>
+          {session?.user ? null : (
+            <p className="rise rise-5 mt-2 flex items-start gap-2 text-[13px] text-muted"><ShieldAlert size={15} className="mt-0.5 shrink-0" aria-hidden="true" /><span>Google&apos;s review is pending, so it warns that the app is unverified. Click Advanced, then Go to mailroom.</span></p>
+          )}
         </div>
         <div className="relative rise rise-3">
           <HeroScene />
