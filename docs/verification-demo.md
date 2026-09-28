@@ -2,7 +2,7 @@
 
 **Status (2026-09-28):** submitted. The demo video is https://youtu.be/bcbSblgWA88 (unlisted, 52 s, recorded from
 the live site with the owner's account; the Gmail filters list is blurred because filter criteria include personal addresses; the
-first cut, mKZpCdDcXH0, is private), the Verification Center shows "Your app's data access is under review",
+first cut, mKZpCdDcXH0, should be set to private in YouTube Studio), the Verification Center shows "Your app's data access is under review",
 and both questionnaire acknowledgements (requirements read; CASA required for restricted scopes) were accepted.
 The `Additional info` text below was sent with it. If Google asks for a new recording, the shot list still applies;
 the source clips are `~/Downloads/mailroom-demo-part{1,2}.gif` and the cut is `~/Downloads/mailroom-demo-v2.mp4`.
