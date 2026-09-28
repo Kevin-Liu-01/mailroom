@@ -5,7 +5,7 @@ import { GmailAuthError, GmailClient, mapLimit, refreshAccessToken, type GmailMe
 import { ACTION_LABEL, AI_LABEL, LABEL_BY_CATEGORY, type CategoryId, type PolicyConfig } from "@/lib/policy/schema";
 import { ALL_TAXONOMY_LABELS, buildFilters, buildRules, resolveRule } from "@/lib/policy/rules";
 import { estimateCostUsd, triageMessage, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
-import type { AiUsage, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
+import type { AiUsage, Judgment, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
 
 const { accounts, aiJudgments, mailboxes, runBatches, runs } = schema;
 
@@ -123,6 +123,28 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
   }
 }
 
+/** Turn one judgment into label changes under the user's policy. Shared by fresh judgments and ones a preview left behind. */
+function decide(j: Judgment, policy: PolicyConfig, labels: Record<string, string>): { add: string[]; remove: string[]; actions: string[] } {
+  const add: string[] = [];
+  const remove: string[] = [];
+  const actions: string[] = [];
+  const cat = j.category as CategoryId;
+  const confident = j.categoryConfidence >= policy.ai.labelConfidence && cat !== "other";
+  const labelName = LABEL_BY_CATEGORY[cat];
+  if (confident && labelName && labels[labelName]) {
+    add.push(labels[labelName], labels[AI_LABEL]);
+    actions.push(`label:${labelName}`);
+  }
+  if (confident && policy.ai.archiveAutomated && j.automated >= policy.ai.archiveAutomatedThreshold && policy.ai.archiveCategories.includes(cat)) {
+    remove.push("INBOX");
+    actions.push("archive");
+  } else if (j.needsAction >= policy.ai.flagActionThreshold) {
+    add.push(labels[ACTION_LABEL]);
+    actions.push("flag:action");
+  }
+  return { add, remove, actions };
+}
+
 async function triagePrimary(ctx: {
   gmail: GmailClient; email: string; userId: string; policy: PolicyConfig; labels: Record<string, string>; mode: RunMode; batches: BatchRecord[];
 }): Promise<NonNullable<RunSummary["ai"]>> {
@@ -135,16 +157,23 @@ async function triagePrimary(ctx: {
   usage.messagesConsidered = candidates.length;
   if (!candidates.length) return usage;
 
-  const seen = new Set(
-    (await db.select({ id: aiJudgments.messageId }).from(aiJudgments).where(and(eq(aiJudgments.userId, userId), inArray(aiJudgments.messageId, candidates)))).map((r) => r.id),
-  );
+  const existing = await db
+    .select({ id: aiJudgments.messageId, threadId: aiJudgments.threadId, judgment: aiJudgments.judgment, actions: aiJudgments.actions })
+    .from(aiJudgments)
+    .where(and(eq(aiJudgments.userId, userId), inArray(aiJudgments.messageId, candidates)));
+  const seen = new Set(existing.map((r) => r.id));
   usage.cacheHits = seen.size;
+  // A preview judges but never acts. The next apply finishes that work without asking Jev again.
+  const pending = mode === "apply" ? existing.filter((r) => r.actions.length > 0 && r.actions.every((a) => a.startsWith("preview:"))) : [];
   let fresh = candidates.filter((id) => !seen.has(id));
   const affordable = Math.floor(policy.ai.budgetUsdPerRun / estimateCostUsd(1));
   fresh = fresh.slice(0, Math.min(policy.ai.maxMessagesPerRun, affordable));
 
-  type Decision = { meta: GmailMessageMeta; judgment: Awaited<ReturnType<typeof triageMessage>>; add: string[]; remove: string[]; actions: string[] };
-  const decisions: Decision[] = [];
+  type Decision = {
+    id: string; threadId: string | null; meta?: GmailMessageMeta; judgment: Judgment; model?: string; inputTokens: number; outputTokens: number;
+    add: string[]; remove: string[]; actions: string[]; fromPreview: boolean;
+  };
+  const decisions: Decision[] = pending.map((r) => ({ id: r.id, threadId: r.threadId, judgment: r.judgment, inputTokens: 0, outputTokens: 0, ...decide(r.judgment, policy, labels), fromPreview: true }));
   const results = await mapLimit(fresh, 6, async (id) => {
     try {
       const meta = await gmail.getMessageMeta(id);
@@ -163,25 +192,10 @@ async function triagePrimary(ctx: {
     usage.inputTokens += judgment.inputTokens;
     usage.outputTokens += judgment.outputTokens;
     usage.model = judgment.model;
-    const j = judgment.judgment;
-    const add: string[] = [];
-    const remove: string[] = [];
-    const actions: string[] = [];
-    const cat = j.category as CategoryId;
-    const confident = j.categoryConfidence >= policy.ai.labelConfidence && cat !== "other";
-    const labelName = LABEL_BY_CATEGORY[cat];
-    if (confident && labelName && labels[labelName]) {
-      add.push(labels[labelName], labels[AI_LABEL]);
-      actions.push(`label:${labelName}`);
-    }
-    if (confident && policy.ai.archiveAutomated && j.automated >= policy.ai.archiveAutomatedThreshold && policy.ai.archiveCategories.includes(cat)) {
-      remove.push("INBOX");
-      actions.push("archive");
-    } else if (j.needsAction >= policy.ai.flagActionThreshold) {
-      add.push(labels[ACTION_LABEL]);
-      actions.push("flag:action");
-    }
-    decisions.push({ meta, judgment, add, remove, actions });
+    decisions.push({
+      id: meta.id, threadId: meta.threadId, meta, judgment: judgment.judgment, model: judgment.model, inputTokens: judgment.inputTokens, outputTokens: judgment.outputTokens,
+      ...decide(judgment.judgment, policy, labels), fromPreview: false,
+    });
   }
   usage.estimatedCostUsd = usage.inputTokens * USD_PER_INPUT_TOKEN;
 
@@ -193,7 +207,7 @@ async function triagePrimary(ctx: {
     groups.set(key, [...(groups.get(key) ?? []), d]);
   }
   for (const [, group] of groups) {
-    const ids = group.map((d) => d.meta.id);
+    const ids = group.map((d) => d.id);
     const add = group[0].add;
     const remove = group[0].remove;
     if (mode === "apply") {
@@ -207,14 +221,20 @@ async function triagePrimary(ctx: {
     }
   }
 
-  if (decisions.length) {
-    await db.insert(aiJudgments).values(decisions.map((d) => ({
-      userId, messageId: d.meta.id, threadId: d.meta.threadId,
-      from: d.meta.headers["from"] ?? null, subject: d.meta.headers["subject"] ?? null,
-      receivedAt: d.meta.internalDate ? new Date(Number(d.meta.internalDate)) : null,
-      judgment: d.judgment.judgment, actions: mode === "apply" ? d.actions : d.actions.map((a) => `preview:${a}`),
-      model: d.judgment.model, inputTokens: d.judgment.inputTokens,
+  const judgedNow = decisions.filter((d) => !d.fromPreview && d.meta);
+  if (judgedNow.length) {
+    await db.insert(aiJudgments).values(judgedNow.map((d) => ({
+      userId, messageId: d.id, threadId: d.threadId,
+      from: d.meta!.headers["from"] ?? null, subject: d.meta!.headers["subject"] ?? null,
+      receivedAt: d.meta!.internalDate ? new Date(Number(d.meta!.internalDate)) : null,
+      judgment: d.judgment, actions: mode === "apply" ? d.actions : d.actions.map((a) => `preview:${a}`),
+      model: d.model ?? null, inputTokens: d.inputTokens,
     }))).onConflictDoNothing();
+  }
+  if (mode === "apply") {
+    for (const d of decisions.filter((x) => x.fromPreview)) {
+      await db.update(aiJudgments).set({ actions: d.actions }).where(and(eq(aiJudgments.userId, userId), eq(aiJudgments.messageId, d.id)));
+    }
   }
   return usage;
 }
