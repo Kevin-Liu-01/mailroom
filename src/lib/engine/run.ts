@@ -5,6 +5,7 @@ import { GmailAuthError, GmailClient, mapLimit, refreshAccessToken, type GmailMe
 import { ACTION_LABEL, AI_LABEL, LABEL_BY_CATEGORY, type CategoryId, type PolicyConfig } from "@/lib/policy/schema";
 import { ALL_TAXONOMY_LABELS, buildFilters, buildRules, resolveRule } from "@/lib/policy/rules";
 import { estimateCostUsd, triageMessage, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
+import { expandLabelQuery } from "@/lib/gmail/labels";
 import type { AiUsage, Judgment, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
 
 const { accounts, aiJudgments, mailboxes, runBatches, runs } = schema;
@@ -74,11 +75,14 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
     if (!mailbox.labelsReady && mode === "apply") await db.update(mailboxes).set({ labelsReady: true }).where(eq(mailboxes.userId, userId));
 
     // 1. Deterministic rules: free, exact, re-runnable by hand.
+    // Users who nest labels ("Receipts/Uber") keep working: every taxonomy label in a rule also matches its sublabels.
+    const allLabelNames = (await gmail.listLabels()).map((l) => l.name);
     for (const raw of buildRules(policy)) {
       const rule = resolveRule(raw, labels);
-      const entry: RuleResult = { id: rule.id, kind: rule.kind, query: rule.query, matched: 0, applied: 0 };
+      const query = expandLabelQuery(rule.query, allLabelNames);
+      const entry: RuleResult = { id: rule.id, kind: rule.kind, query, matched: 0, applied: 0 };
       try {
-        const ids = await gmail.listMessageIds(rule.query);
+        const ids = await gmail.listMessageIds(query);
         entry.matched = ids.length;
         if (rule.kind === "trash" && ids.length > policy.aging.maxTrashPerRule) {
           entry.skipped = `matched ${ids.length} > maxTrashPerRule ${policy.aging.maxTrashPerRule}; refused`;

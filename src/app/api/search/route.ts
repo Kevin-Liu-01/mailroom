@@ -5,6 +5,7 @@ import { requireUserId } from "@/lib/session";
 import { gmailFor } from "@/lib/engine/run";
 import { mapLimit } from "@/lib/gmail/client";
 import { compileSearch } from "@/lib/search/compile";
+import { expandLabelQuery } from "@/lib/gmail/labels";
 import { rerank, scoreOf, type Ranked } from "@/lib/search/rerank";
 import { USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
 
@@ -24,7 +25,8 @@ export async function POST(req: Request) {
     if (!gmailQuery) {
       if (!body.q?.trim()) return NextResponse.json({ error: "empty query" }, { status: 400 });
       compiled = await compileSearch(body.q, { knownSenders: known, hasLabel: (n) => labelNames.has(n) });
-      gmailQuery = compiled.gmail;
+      // Gmail does not search into nested labels, so reach the user's "Receipts/Uber" from "Receipts".
+      gmailQuery = expandLabelQuery(compiled.gmail, labelNames);
     }
     const countMode = Boolean(compiled?.count);
     // Counting lists ids only (cheap, 500 per page) up to a cap; showing fetches metadata for the page of results.
