@@ -66,7 +66,7 @@ export function SearchBox({ initial = "", autoFocus = false, compact = false }: 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {PRESET_GROUPS.map((g) => (
             <div key={g.name} className="min-w-0">
-              <div className="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-[.12em] text-muted">{g.name}</div>
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-muted">{g.name}</div>
               <div className="flex flex-wrap gap-1.5">
                 {g.items.map(({ q: preset, label, icon: Icon, hint }) => (
                   <button key={preset} type="button" className="chip py-1 hover:border-ink hover:text-ink" title={hint} onClick={() => go(preset)}><Icon size={12} aria-hidden="true" />{label}</button>

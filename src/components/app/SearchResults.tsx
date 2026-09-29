@@ -203,7 +203,7 @@ export function SearchResults({ q }: { q: string }) {
             <span className="text-muted">Gmail</span>
             {rawMode ? (
               <form className="flex flex-1 gap-2" onSubmit={(e) => { e.preventDefault(); run({ gmail: raw }); }}>
-                <input className="input" style={{ minHeight: 36 }} value={raw} onChange={(e) => setRaw(e.target.value)} />
+                <input className="input font-mono" style={{ minHeight: 36 }} value={raw} onChange={(e) => setRaw(e.target.value)} />
                 <button className="btn btn-sm" type="submit">Run</button>
                 <button className="btn btn-sm" type="button" onClick={() => { setRawMode(false); run({ q }); }}>Back</button>
               </form>

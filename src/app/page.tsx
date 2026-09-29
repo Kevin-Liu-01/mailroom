@@ -40,7 +40,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       <section id="hero" className="section relative">
         <div className="dither" aria-hidden="true" />
         <div className="relative">
-          <FitLine as="h1" em={heroEm} min={22} max={112} className="rise font-bold tracking-[-0.03em]">
+          <FitLine as="h1" em={heroEm} min={22} max={112} className="rise text-center font-semibold tracking-[-0.03em]">
             Your <GmailMark className="ml-[.04em] mr-[.16em] inline-block h-[.88em] w-[.88em] align-[-.1em]" /><span className="gmail-word">Gmail,</span> sorted.
           </FitLine>
         </div>

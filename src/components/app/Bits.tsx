@@ -7,7 +7,7 @@ import { Brand, BRANDS, Person, type BrandId } from "@/components/landing/Brand"
 export function CardTitle({ icon: Icon, children, action }: { icon: LucideIcon; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="m-0 flex items-center gap-2.5 text-[15px] font-bold tracking-normal">
+      <h2 className="m-0 flex items-center gap-2.5 text-[15px] font-semibold tracking-normal">
         <span className="tile tile--sm" aria-hidden="true"><Icon size={16} strokeWidth={2.2} /></span>
         {children}
       </h2>
@@ -49,9 +49,9 @@ export function PageHead({ icon, title, mono = false, children, actions }: { ico
         <span className="tile tile--lg mt-0.5" aria-hidden="true">{icon}</span>
         <div className="min-w-0 flex-1">
           {typeof title === "string"
-            ? <FitLine as="h1" text={title} voice={mono ? "mono" : "camber"} min={18} max={40} className="font-bold tracking-[-0.02em]" />
-            : <h1 className={`m-0 whitespace-nowrap text-[clamp(22px,3vw,40px)] font-bold leading-[1.1] tracking-[-0.02em] ${mono ? "font-mono" : ""}`}>{title}</h1>}
-          {children ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 font-mono text-[13px] text-muted">{children}</div> : null}
+            ? <FitLine as="h1" text={title} voice={mono ? "mono" : "camber"} min={18} max={40} className="font-semibold tracking-[-0.02em]" />
+            : <h1 className={`m-0 whitespace-nowrap text-[clamp(22px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.02em] ${mono ? "font-mono" : ""}`}>{title}</h1>}
+          {children ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13.5px] text-muted">{children}</div> : null}
         </div>
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -82,7 +82,7 @@ export function Bars({ rows, max, tones }: { rows: { label: string; value: numbe
   return (
     <ul className="m-0 list-none space-y-1.5 p-0">
       {rows.map((r, i) => (
-        <li key={r.label} className="grid grid-cols-[minmax(0,140px)_1fr_auto] items-center gap-2 font-mono text-[12.5px]">
+        <li key={r.label} className="grid grid-cols-[minmax(0,140px)_1fr_auto] items-center gap-2 text-[12.5px]">
           <span className="truncate" title={r.label}>{r.label}</span>
           <span className="meter" style={{ height: 8, "--tone": toneVar(tones?.[i] ?? "ink") } as CSSProperties}><i style={{ width: `${Math.max(2, (r.value / top) * 100)}%` }} /></span>
           <span className="tabular-nums text-muted">{r.hint ?? r.value}</span>
@@ -131,7 +131,7 @@ export function SectionTitle({ icon: Icon, tone = "ink", children, action, sub }
       <div className="flex items-center gap-3">
         <span className={`tile ${tone === "ink" ? "" : "tile--tone"}`} style={{ "--tone": toneVar(tone) } as CSSProperties} aria-hidden="true"><Icon size={20} strokeWidth={2.2} /></span>
         <div>
-          <h2 className="m-0 text-[clamp(22px,2.4vw,28px)] font-bold leading-none tracking-[-0.02em]">{children}</h2>
+          <h2 className="m-0 text-[clamp(22px,2.4vw,28px)] font-semibold leading-none tracking-[-0.02em]">{children}</h2>
           {sub ? <div className="mt-1 text-[13px] text-muted">{sub}</div> : null}
         </div>
       </div>

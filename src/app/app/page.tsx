@@ -81,7 +81,6 @@ export default async function Dashboard() {
       <PageHead
         icon={<GmailMark size={30} />}
         title={mailbox.email}
-        mono
         actions={<><Link href="/app/policy" className="btn"><SlidersHorizontal size={15} aria-hidden="true" /> Policy</Link><Link href="/app/search" className="btn"><Search size={15} aria-hidden="true" /> Search</Link></>}
       >
         <Meta icon={PlugZap}>{needsReauth ? "Needs reconnect" : mailbox.status === "active" ? "Connected" : mailbox.status.replace(/^./, (c) => c.toUpperCase())}</Meta>
@@ -226,7 +225,7 @@ export default async function Dashboard() {
         <div className="flex items-start gap-4">
           <span className="tile tile--sm" aria-hidden="true"><LogOut size={16} /></span>
           <div>
-            <h2 className="m-0 text-[15px] font-bold tracking-normal">Leave</h2>
+            <h2 className="m-0 text-[15px] font-semibold tracking-normal">Leave</h2>
             <p className="m-0 mt-1 text-[13.5px] text-muted">Revokes the token and deletes your data. Gmail keeps its labels.</p>
           </div>
         </div>

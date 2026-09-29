@@ -33,7 +33,7 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
         <div className="flex items-center gap-3">
           <span className="tile" aria-hidden="true"><ListChecks size={20} strokeWidth={2.2} /></span>
           <div>
-            <h2 className="m-0 text-[15px] font-bold tracking-normal">Run the policy</h2>
+            <h2 className="m-0 text-[15px] font-semibold tracking-normal">Run the policy</h2>
             <p className="m-0 mt-0.5 text-[13.5px] text-muted">Preview changes nothing. Undo covers everything.</p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { CAMBER_BOLD, CAMBER_FALLBACK_EM } from "./type-metrics";
+import { CAMBER_SEMIBOLD, CAMBER_FALLBACK_EM } from "./type-metrics";
 
 /** One line between two sections, with crop marks at both ends. */
 export function Seam() {
@@ -16,7 +16,7 @@ export type Voice = "camber" | "mono";
 
 /** How wide a line runs, in em: Camber from its measured advances, Berkeley Mono at 0.6em a character, plus tracking. */
 export function emWidth(text: string, voice: Voice = "camber", tracking = -0.02): number {
-  const glyphs = voice === "mono" ? text.length * 0.6 : [...text].reduce((w, ch) => w + (CAMBER_BOLD[ch] ?? CAMBER_FALLBACK_EM), 0);
+  const glyphs = voice === "mono" ? text.length * 0.6 : [...text].reduce((w, ch) => w + (CAMBER_SEMIBOLD[ch] ?? CAMBER_FALLBACK_EM), 0);
   return glyphs + tracking * text.length;
 }
 
@@ -42,7 +42,7 @@ export function SectionHead({ icon: Icon, title, children, center = false }: { i
   return (
     <div className={center ? "flex flex-col items-center text-center" : ""}>
       <span className="tile mb-6" aria-hidden="true"><Icon size={22} strokeWidth={2.2} /></span>
-      <FitLine as="h2" text={title} className="font-bold tracking-[-0.02em]" />
+      <FitLine as="h2" text={title} className="font-semibold tracking-[-0.02em]" />
       {children ? <p className="mt-5 max-w-[640px] text-[clamp(17px,1.5vw,21px)] leading-snug text-muted">{children}</p> : null}
     </div>
   );
