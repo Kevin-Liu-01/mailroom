@@ -2,9 +2,10 @@ import { COS, SIN, Envelope, IsoBox, Patterns, Stamp, Wire, ink, iso, path, poly
 import { BrandGlyph, type BrandId } from "./Brand";
 
 /**
- * The hero: mail rides a belt into the JEV sorter tower. One row of sockets on the tower's right face
- * feeds five wires at the same height; far buckets ride the inner rails so no wire ever crosses another.
- * Every letter carries the mark of who sent it. The viewBox is computed from the geometry, so nothing clips.
+ * The hero: mail rides a belt into the JEV sorter tower. One row of sockets on the tower's right face feeds five
+ * wires at the same height; far buckets ride the inner rails so no wire ever crosses another. Behind the near buckets
+ * sits a depot of closed crates, two rows of three. Every letter carries the mark of who sent it. The viewBox is
+ * computed from the geometry, so nothing clips.
  */
 type BinSpec = { label: string; brands: BrandId[]; trash?: boolean; tag?: string };
 const BINS: BinSpec[] = [
@@ -16,18 +17,22 @@ const BINS: BinSpec[] = [
 ];
 
 const TOWER = 42;           // half footprint of the sorter
-const TOWER_H = 124;
+const TOWER_H = 116;
 const HALF = 38;            // half footprint of a bucket
 const BIN_H = 52;           // wall height
 const RIM = 4;              // wall thickness
 const STEP = 98;            // bucket spacing along -v (the row climbs up and to the right)
 const RACK_U = 160;         // every bucket is centred on this u
 const RACK_V0 = 52;         // nearest bucket, v
-const PORT_Z = 108;         // the front socket's height; the row is level on screen, so sockets further back sit a little lower
-const socketZ = (q: number) => PORT_Z - (30 - q) / 2; // keeps (TOWER + q) / 2 - z constant: a screen-horizontal row
+const PORT_Z = 96;          // every wire leaves the tower at this height: one straight row of sockets along the face
 const DROP_Z = BIN_H + 12;  // a drop ends here, just above the pile
 const BELT_FAR = 122;       // where the belt starts
 const railU = (j: number) => 178 - 12 * j; // far buckets take the inner rails, near buckets the outer ones
+const DEPOT_ROWS = 2;       // rows of crates behind the rack
+const DEPOT_COLS = 3;       // crates per row, behind the nearest buckets
+const DEPOT_STEP = 92;      // how far back each row sits
+const CRATE_HALF = 34;      // half footprint of a crate
+const CRATE_H = 40;         // crate height, lower than a bucket so the rack stays in front
 
 type Bin = BinSpec & { cu: number; cv: number; wire: string; length: number; port: Pt; railU: number };
 
@@ -36,24 +41,35 @@ function layout(): Bin[] {
     const cu = RACK_U;
     const cv = RACK_V0 - STEP * j;
     const q = 30 - 15 * j;   // socket position along the tower's right face, front to back
-    const z = socketZ(q);
     const ru = railU(j);
-    const pts: Pt[] = [iso(TOWER, q, z), iso(ru, q, z), iso(ru, cv, z), iso(ru, cv, DROP_Z)];
-    const length = ru - TOWER + Math.abs(cv - q) + (z - DROP_Z);
+    const pts: Pt[] = [iso(TOWER, q, PORT_Z), iso(ru, q, PORT_Z), iso(ru, cv, PORT_Z), iso(ru, cv, DROP_Z)];
+    const length = ru - TOWER + Math.abs(cv - q) + (PORT_Z - DROP_Z);
     return { ...bin, cu, cv, wire: path(pts), length, port: pts[0], railU: ru };
   });
 }
 
+type CrateSpec = { cu: number; cv: number };
+
+/** Closed crates behind the rack, half a bay over from the buckets, so each one shows between two bucket corners. */
+function depot(): CrateSpec[] {
+  const crates: CrateSpec[] = [];
+  for (let i = 1; i <= DEPOT_ROWS; i++) for (let j = 1; j <= DEPOT_COLS; j++) crates.push({ cu: RACK_U - DEPOT_STEP * i, cv: RACK_V0 - STEP * j - STEP / 2 });
+  return crates.sort((a, b) => a.cu + a.cv - (b.cu + b.cv)); // far to near, so nearer crates paint over farther ones
+}
+
 /** Everything that sticks out, so the viewBox can hug the drawing with a margin. */
-function bounds(bins: Bin[]): { x: number; y: number; w: number; h: number } {
+function bounds(bins: Bin[], crates: CrateSpec[]): { x: number; y: number; w: number; h: number } {
   const far = bins[bins.length - 1];
   const pts: Pt[] = [
     iso(-TOWER - 16, -TOWER - 16), iso(TOWER + 16, -TOWER - 16), iso(TOWER + 16, BELT_FAR + 46), iso(-TOWER - 16, BELT_FAR + 46),
     iso(RACK_U - HALF - 16, far.cv - HALF - 16), iso(RACK_U + HALF + 16, far.cv - HALF - 16), iso(RACK_U + HALF + 16, RACK_V0 + HALF + 16), iso(RACK_U - HALF - 16, RACK_V0 + HALF + 16),
     iso(-TOWER, -TOWER, TOWER_H), iso(TOWER, -TOWER, TOWER_H), iso(-TOWER, TOWER, TOWER_H),
     ...bins.map((b) => iso(b.railU, b.cv, PORT_Z + 16)),
-    iso(TOWER, 30, PORT_Z + 16),
     ...bins.map((b) => iso(RACK_U + HALF, b.cv, 0)),
+    ...crates.flatMap((c) => [
+      iso(c.cu - CRATE_HALF, c.cv - CRATE_HALF, CRATE_H), iso(c.cu + CRATE_HALF, c.cv - CRATE_HALF, CRATE_H), iso(c.cu - CRATE_HALF, c.cv + CRATE_HALF, CRATE_H),
+      iso(c.cu + CRATE_HALF + 11, c.cv + CRATE_HALF + 11, 0),
+    ]),
   ];
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const [x, y] of pts) { minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); }
@@ -129,6 +145,18 @@ function Bucket({ b }: { b: Bin }) {
   );
 }
 
+/** A closed crate in the depot: a lid panel, and a strip of tape over the top and down the near face. */
+function Crate({ c }: { c: CrateSpec }) {
+  const u0 = c.cu - CRATE_HALF, u1 = c.cu + CRATE_HALF, v0 = c.cv - CRATE_HALF, v1 = c.cv + CRATE_HALF;
+  const lid = 7;
+  return (
+    <IsoBox u0={u0} v0={v0} u1={u1} v1={v1} h={CRATE_H} shadow weight={1.25}>
+      <polygon points={poly([iso(u0 + lid, v0 + lid, CRATE_H), iso(u1 - lid, v0 + lid, CRATE_H), iso(u1 - lid, v1 - lid, CRATE_H), iso(u0 + lid, v1 - lid, CRATE_H)])} style={{ fill: "none", stroke: ink(26) }} strokeWidth={1} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+      <path d={path([iso(c.cu, v0, CRATE_H), iso(c.cu, v1, CRATE_H), iso(c.cu, v1, 0)])} style={{ fill: "none", stroke: ink(20) }} strokeWidth={3} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+    </IsoBox>
+  );
+}
+
 /** A letter riding a wire or the belt, carrying its sender's mark. */
 function FlyingLetter({ d, begin, dur, brand }: { d: string; begin: string; dur: string; brand: BrandId }) {
   return (
@@ -154,13 +182,14 @@ function Socket({ at }: { at: Pt }) {
 }
 
 /** A flat slab the machines stand on. */
-function Slab({ u0, v0, u1, v1 }: { u0: number; v0: number; u1: number; v1: number }) {
-  return <polygon points={poly([iso(u0, v0), iso(u1, v0), iso(u1, v1), iso(u0, v1)])} style={{ fill: ink(5), stroke: ink(32) }} strokeWidth={1} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />;
+function Slab({ points }: { points: Pt[] }) {
+  return <polygon points={poly(points)} style={{ fill: ink(5), stroke: ink(32) }} strokeWidth={1} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />;
 }
 
 export function HeroScene() {
   const bins = layout();
-  const box = bounds(bins);
+  const crates = depot();
+  const box = bounds(bins, crates);
   const beltPath = path([iso(0, BELT_FAR - 6, 9), iso(0, TOWER + 2, 9)]);
   const stack: { du: number; dv: number; brand: BrandId }[] = [
     { du: 0, dv: 0, brand: "chase" }, { du: 2, dv: -1, brand: "uber" }, { du: -1, dv: 1, brand: "spotify" }, { du: 1, dv: 0, brand: "linkedin" },
@@ -169,17 +198,20 @@ export function HeroScene() {
   const seam = "color-mix(in srgb, var(--page) 24%, transparent)";
   const far = bins[bins.length - 1];
   return (
-    <svg viewBox={`${box.x.toFixed(1)} ${box.y.toFixed(1)} ${box.w.toFixed(1)} ${box.h.toFixed(1)}`} className="relative block h-auto w-full overflow-visible" role="img" aria-label="Isometric mailroom: letters stamped with sender logos ride a belt into the JEV sorter tower and travel along five wires into open buckets labeled Work, Receipts, Promos, Social, and Trash">
+    <svg viewBox={`${box.x.toFixed(1)} ${box.y.toFixed(1)} ${box.w.toFixed(1)} ${box.h.toFixed(1)}`} className="relative block h-auto w-full overflow-visible" role="img" aria-label="Isometric mailroom: letters stamped with sender logos ride a belt into the JEV sorter tower and travel along five wires into open buckets labeled Work, Receipts, Promos, Social, and Trash, with two rows of closed crates behind them">
       <Patterns prefix="hero" />
       {/* the floor */}
-      <Slab u0={-TOWER - 16} v0={-TOWER - 16} u1={TOWER + 16} v1={BELT_FAR + 46} />
-      <Slab u0={RACK_U - HALF - 16} v0={far.cv - HALF - 16} u1={RACK_U + HALF + 16} v1={RACK_V0 + HALF + 16} />
+      <Slab points={[iso(-TOWER - 16, -TOWER - 16), iso(TOWER + 16, -TOWER - 16), iso(TOWER + 16, BELT_FAR + 46), iso(-TOWER - 16, BELT_FAR + 46)]} />
+      <Slab points={[iso(RACK_U - HALF - 16, far.cv - HALF - 16), iso(RACK_U + HALF + 16, far.cv - HALF - 16), iso(RACK_U + HALF + 16, RACK_V0 + HALF + 16), iso(RACK_U - HALF - 16, RACK_V0 + HALF + 16)]} />
+
+      {/* the depot, behind everything, far to near */}
+      {crates.map((c) => <Crate key={`${c.cu}:${c.cv}`} c={c} />)}
 
       {/* the sorter tower */}
       <IsoBox u0={-TOWER} v0={-TOWER} u1={TOWER} v1={TOWER} h={TOWER_H} tone="dark" shadow weight={1.5}>
         <polygon points={poly([iso(-16, TOWER, 14), iso(16, TOWER, 14), iso(16, TOWER, 0), iso(-16, TOWER, 0)])} style={{ fill: "var(--page)", stroke: ink(70) }} strokeWidth={1} />
         <path d={path([iso(-TOWER, TOWER, 66), iso(TOWER, TOWER, 66), iso(TOWER, -TOWER, 66)])} style={{ fill: "none", stroke: seam }} strokeWidth={1} />
-        <path d={path([iso(TOWER, -TOWER, socketZ(-TOWER)), iso(TOWER, TOWER, socketZ(TOWER))])} style={{ fill: "none", stroke: seam }} strokeWidth={1} />
+        <path d={path([iso(TOWER, -TOWER, PORT_Z), iso(TOWER, TOWER, PORT_Z)])} style={{ fill: "none", stroke: seam }} strokeWidth={1} />
         {[14, 22, 30].map((z) => <path key={z} d={path([iso(TOWER, 6, z), iso(TOWER, 36, z)])} style={{ fill: "none", stroke: seam }} strokeWidth={1.2} />)}
         <Stamp u={0} v={0} z={TOWER_H} />
       </IsoBox>

@@ -45,7 +45,7 @@ export function TrashDiagram() {
   return (
     <figure className="card card--surface m-0 overflow-hidden" style={flush} aria-label="The senders table: four senders with volume, unread share, the disposable probability from Jev, and a verdict chip for each">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 md:px-5">
-        <span className="text-[14.5px] font-bold">Senders <span className="font-normal text-muted">last 90 days</span></span>
+        <span className="text-[14.5px] font-bold">Senders <span className="font-normal text-muted">Last 90 days</span></span>
         <span className="flex flex-wrap items-baseline gap-x-4 text-[12.5px] text-muted">
           <span><b className="mono text-ink">{total}</b> messages</span>
           <span>Reclaimable <b className="display text-[18px] text-ink">{reclaimable}</b></span>

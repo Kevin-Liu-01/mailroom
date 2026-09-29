@@ -10,7 +10,7 @@ import { SearchDiagram } from "@/components/landing/SearchDiagram";
 import { TrashDiagram } from "@/components/landing/TrashDiagram";
 import { JudgmentCard } from "@/components/landing/JudgmentCard";
 import { ClosingBand } from "@/components/landing/ClosingBand";
-import { IconCard, Seam, SectionHead } from "@/components/landing/Section";
+import { FitLine, IconCard, Seam, SectionHead } from "@/components/landing/Section";
 import { LabelGrid } from "@/components/landing/LabelGrid";
 import { defaultPolicy } from "@/lib/policy/schema";
 import { ESTIMATED_TOKENS_PER_MESSAGE, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
@@ -35,14 +35,15 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
 
   return (
     <div>
-      <section id="hero" className="section relative grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] lg:gap-12">
+      <section id="hero" className="section relative">
         <div className="dither" aria-hidden="true" />
         <div className="relative">
-          <h1 className="rise text-[clamp(40px,5.3vw,76px)] font-bold leading-[1.0] tracking-[-0.03em]">
-            Your Gmail,
-            <br />
-            sorted.
-          </h1>
+          <FitLine as="h1" em={11.9} min={22} max={112} className="rise font-bold tracking-[-0.03em]">
+            Your <GmailMark className="ml-[.04em] mr-[.16em] inline-block h-[.88em] w-[.88em] align-[-.1em]" /><span className="gmail-word">Gmail,</span> sorted.
+          </FitLine>
+        </div>
+        <div className="relative mt-10 grid items-center gap-12 lg:mt-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-14">
+        <div className="relative">
           <p className={`rise rise-2 ${lede}`}>Rules you can read. Typed AI judgments for pennies. A straight answer to what to trash.</p>
           {error === "scope" ? (
             <p className="mt-5 max-w-[560px] border border-ink p-4 text-[15px]">Sign in again and leave both Gmail boxes checked. If Google says the app is unverified, click Advanced, then Go to mailroom. Mailroom never sends or deletes anything.</p>
@@ -59,33 +60,34 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
         <div className="relative rise rise-3">
           <HeroScene />
         </div>
+        </div>
       </section>
 
       <Seam />
 
       <section id="how" className="section">
-        <SectionHead icon={Workflow} line1="Rules, then Jev," line2="then a receipt.">Free searches do the bulk. One cheap judgment places the rest. Everything has an undo.</SectionHead>
+        <SectionHead icon={Workflow} title="Rules. Jev. Receipt.">Free searches do the bulk. One cheap judgment places the rest. Everything has an undo.</SectionHead>
         <div className="mt-12"><RunFlow /></div>
       </section>
 
       <Seam />
 
       <section id="search" className="section">
-        <SectionHead icon={Search} line1="Ask in plain words." line2="Get a Gmail query.">Type it like you would say it. Edit the query if you want. Act on the results in bulk.</SectionHead>
+        <SectionHead icon={Search} title="Ask in plain words.">Type it like you would say it. Edit the query if you want. Act on the results in bulk.</SectionHead>
         <div className="mt-12"><SearchDiagram /></div>
       </section>
 
       <Seam />
 
       <section id="trash" className="section">
-        <SectionHead icon={Trash2} line1="Decide once," line2="sender by sender.">Jev scores every sender. You click. It becomes a standing rule.</SectionHead>
+        <SectionHead icon={Trash2} title="Decide sender by sender.">Jev scores every sender. You click. It becomes a standing rule.</SectionHead>
         <div className="mt-12"><TrashDiagram /></div>
       </section>
 
       <Seam />
 
       <section id="policy" className="section">
-        <SectionHead icon={Tags} line1="Thirteen labels." line2="Nothing custom." />
+        <SectionHead icon={Tags} title="Thirteen fixed labels." />
         <div className="mt-12"><LabelGrid policy={policy} /></div>
         <p className={lede}>Never sends. Never unsubscribes. Never deletes for good. Never trashes work, people, or money.</p>
       </section>
@@ -93,14 +95,14 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       <Seam />
 
       <section id="ai" className="section grid items-center gap-12 lg:grid-cols-2">
-        <SectionHead icon={BrainCircuit} line1="Five typed questions." line2="One judgment each.">Metadata only. Probabilities, not prose. Judged once, cached forever.</SectionHead>
+        <SectionHead icon={BrainCircuit} title="Five typed questions.">One judgment each, on metadata only. Probabilities, not prose. Judged once, cached forever.</SectionHead>
         <JudgmentCard />
       </section>
 
       <Seam />
 
       <section id="cost" className="section">
-        <SectionHead icon={Coins} line1="Rules are free." line2="Judgments cost cents." />
+        <SectionHead icon={Coins} title="Rules are free.">Judgments cost cents. You set the cap.</SectionHead>
         <ul className="m-0 mt-12 grid list-none gap-4 p-0 sm:grid-cols-3">
           {costs.map(({ icon: Icon, n, t }) => (
             <li key={t} className="card py-8">
@@ -115,7 +117,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       <Seam />
 
       <section id="trust" className="section">
-        <SectionHead icon={ShieldCheck} line1="Your mail stays" line2="in Google." />
+        <SectionHead icon={ShieldCheck} title="Your mail stays in Google." />
         <ul className="display m-0 mt-12 grid list-none gap-4 p-0 text-[clamp(19px,2.1vw,26px)] leading-tight sm:grid-cols-2">
           <IconCard icon={Lock} className="py-7">Bodies never leave Google.</IconCard>
           <IconCard icon={KeyRound} className="py-7">Tokens encrypted at rest.</IconCard>

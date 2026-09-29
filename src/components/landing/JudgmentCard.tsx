@@ -47,7 +47,7 @@ export function JudgmentCard() {
     <figure className="card card--surface m-0 overflow-hidden" style={flush} aria-label="One Jev judgment for a recruiting email: a category distribution, four probabilities against their thresholds, and the cost">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-5">
         <span className="flex items-center gap-2 text-[14.5px] font-bold"><Stamp size={16} className="text-ink" aria-hidden="true" />One judgment</span>
-        <span className="chip chip--accent">metadata only</span>
+        <span className="chip chip--accent">Metadata only</span>
       </div>
       <div className="border-t border-line bg-panel px-4 py-3.5 text-[13px] sm:px-5">
         <div className="flex items-center gap-3">
@@ -66,7 +66,7 @@ export function JudgmentCard() {
       <div className="border-t border-line px-4 py-3.5 sm:px-5">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[13px]">
           <span className="font-bold">Category <span className="font-normal text-muted">(Choice, top 4 of 14)</span></span>
-          <span className="text-muted">labeled at <b className="mono text-ink">0.60</b> or higher</span>
+          <span className="text-muted">Labeled at <b className="mono text-ink">0.60</b> or higher</span>
         </div>
         <ul className="m-0 mt-2.5 list-none space-y-2 p-0">
           {CHOICE.map(([label, p], i) => (
@@ -81,7 +81,7 @@ export function JudgmentCard() {
       <div className="border-t border-line px-4 py-3.5 sm:px-5">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[13px]">
           <span className="font-bold">Four Nouls <span className="font-normal text-muted">(yes or no, as probabilities)</span></span>
-          <span className="text-muted">tick marks the threshold</span>
+          <span className="text-muted">Tick marks the threshold</span>
         </div>
         <ul className="m-0 mt-2.5 list-none space-y-3 p-0">
           {NOULS.map((n) => (
@@ -95,9 +95,9 @@ export function JudgmentCard() {
         </ul>
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-line bg-panel px-4 py-3 text-[12.5px] sm:px-5">
-        <span className="chip chip--accent">label: Recruiting</span>
-        <span className="chip">archive</span>
-        <span className="chip">no flag</span>
+        <span className="chip chip--accent">Label: Recruiting</span>
+        <span className="chip">Archive</span>
+        <span className="chip">No flag</span>
         <span className="ml-auto text-muted"><b className="mono text-ink">{TOKENS.toLocaleString("en-US")}</b> tokens · <b className="mono text-ink">{cost}</b></span>
       </div>
     </figure>

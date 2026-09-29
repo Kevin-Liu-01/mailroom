@@ -17,9 +17,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const saved = await db.select().from(schema.savedSearches).where(eq(schema.savedSearches.userId, session.user.id)).orderBy(desc(schema.savedSearches.createdAt)).limit(20);
   return (
     <div className="section space-y-10">
-      <PageHead icon={<Search size={26} />} title="Ask your mailbox in plain words">
+      <PageHead icon={<Search size={26} />} title="Ask in plain words">
         <Meta icon={Sparkles}>Jev turns it into a Gmail query you can edit</Meta>
-        <Meta icon={Undo2}>every action on the results is undoable</Meta>
+        <Meta icon={Undo2}>Every action on the results is undoable</Meta>
       </PageHead>
       <SearchBox initial={q} autoFocus={!q} />
       <div className="grid gap-6 lg:grid-cols-[1fr_260px]">

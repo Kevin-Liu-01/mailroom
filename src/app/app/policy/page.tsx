@@ -12,9 +12,9 @@ export default async function PolicyPage() {
   return (
     <div className="section space-y-8">
       <PageHead icon={<SlidersHorizontal size={26} />} title="Your policy">
-        <Meta icon={Lock}>the structure is fixed</Meta>
-        <Meta icon={SlidersHorizontal}>every number, list, and switch is yours</Meta>
-        <Meta icon={Clock}>changes apply from the next run</Meta>
+        <Meta icon={Lock}>The structure is fixed</Meta>
+        <Meta icon={SlidersHorizontal}>Every number, list, and switch is yours</Meta>
+        <Meta icon={Clock}>Changes apply from the next run</Meta>
       </PageHead>
       <PolicyEditor />
     </div>

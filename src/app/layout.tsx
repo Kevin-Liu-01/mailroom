@@ -19,15 +19,17 @@ const berkeley = localFont({
   variable: "--font-berkeley",
   display: "swap",
 });
+// Google Sans Flex, Google's own typeface, open-licensed and self-hosted. It sets exactly one word on the site: the "Gmail" in the hero.
+const googleSans = localFont({ src: "./fonts/GoogleSansFlex-latin.woff2", weight: "400 700", variable: "--font-google-sans", display: "swap" });
 
 const url = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
-  title: "mailroom",
+  title: "Mailroom",
   verification: { google: "3rhZfQGUOEb4MxiPhacvNbcB513B-hB2IxA-UPef4TY" },
   description: "A sorting room for your Gmail. Rules you can read, typed AI judgments that cost pennies, natural-language search, and a straight answer to what to trash. Every run previews first and can be undone.",
   metadataBase: new URL(url),
-  openGraph: { title: "mailroom", description: "A sorting room for your Gmail: rules, cheap typed AI judgments, natural-language search, receipts and undo.", url, siteName: "mailroom" },
-  twitter: { card: "summary_large_image", title: "mailroom", description: "A sorting room for your Gmail." },
+  openGraph: { title: "Mailroom", description: "A sorting room for your Gmail: rules, cheap typed AI judgments, natural-language search, receipts and undo.", url, siteName: "Mailroom" },
+  twitter: { card: "summary_large_image", title: "Mailroom", description: "A sorting room for your Gmail." },
 };
 
 const themeInit = `try{var t=localStorage.getItem('mailroom-theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t}catch(e){}`;
@@ -43,7 +45,7 @@ const claim = "inline-flex items-center gap-1.5 whitespace-nowrap";
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   return (
-    <html lang="en" className={berkeley.variable} suppressHydrationWarning>
+    <html lang="en" className={`${berkeley.variable} ${googleSans.variable}`} suppressHydrationWarning>
       <body className="min-h-screen antialiased">
         <Script id="mailroom-theme-init" strategy="beforeInteractive">{themeInit}</Script>
         <header className="frame sticky top-0 z-50 flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b border-line bg-page px-4 py-2 sm:px-6">
@@ -75,12 +77,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <footer className="frame flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line px-6 py-5 text-[12.5px] text-muted">
           <ul className="m-0 flex list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
             <li className={claim}><BrandMark size={16} /> mailroom</li>
-            <li className={claim}><Database size={13} aria-hidden="true" /> metadata only</li>
-            <li className={claim}><Lock size={13} aria-hidden="true" /> tokens encrypted at rest</li>
-            <li className={claim}><Undo2 size={13} aria-hidden="true" /> every run undoable</li>
-            <li className={claim}><ShieldOff size={13} aria-hidden="true" /> never sent, never deleted for good</li>
+            <li className={claim}><Database size={13} aria-hidden="true" /> Metadata only</li>
+            <li className={claim}><Lock size={13} aria-hidden="true" /> Tokens encrypted at rest</li>
+            <li className={claim}><Undo2 size={13} aria-hidden="true" /> Every run undoable</li>
+            <li className={claim}><ShieldOff size={13} aria-hidden="true" /> Never sent, never deleted for good</li>
           </ul>
-          <span className="flex flex-wrap items-center gap-3"><Link href="/privacy" className="hover:text-ink">privacy</Link><Link href="/terms" className="hover:text-ink">terms</Link><span>judgments by TypeSafe Jev · built by Kevin Liu</span></span>
+          <span className="flex flex-wrap items-center gap-3"><Link href="/privacy" className="hover:text-ink">Privacy</Link><Link href="/terms" className="hover:text-ink">Terms</Link><span>Judgments by TypeSafe Jev · Built by Kevin Liu</span></span>
         </footer>
       </body>
     </html>

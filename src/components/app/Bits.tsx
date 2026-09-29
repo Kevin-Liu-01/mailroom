@@ -1,3 +1,4 @@
+import { FitLine } from "@/components/landing/Section";
 import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Brand, BRANDS, Person, type BrandId } from "@/components/landing/Brand";
@@ -40,14 +41,16 @@ export function Empty({ icon: Icon, children, action }: { icon: LucideIcon; chil
   );
 }
 
-/** An app page's opening: icon tile, a heading that never runs past two lines, one line of facts under it, actions on the right. */
+/** An app page's opening: icon tile, a heading that always fits on one line, one line of facts under it, actions on the right. */
 export function PageHead({ icon, title, children, actions }: { icon: ReactNode; title: ReactNode; children?: ReactNode; actions?: ReactNode }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-6">
-      <div className="flex min-w-0 items-start gap-4">
+      <div className="flex min-w-0 flex-1 items-start gap-4">
         <span className="tile tile--lg mt-0.5" aria-hidden="true">{icon}</span>
-        <div className="min-w-0">
-          <h1 className="m-0 text-[clamp(26px,3vw,40px)] font-bold leading-[1.1] tracking-[-0.02em] [overflow-wrap:anywhere]">{title}</h1>
+        <div className="min-w-0 flex-1">
+          {typeof title === "string"
+            ? <FitLine as="h1" text={title} min={18} max={40} className="font-bold tracking-[-0.02em]" />
+            : <h1 className="m-0 whitespace-nowrap text-[clamp(22px,3vw,40px)] font-bold leading-[1.1] tracking-[-0.02em]">{title}</h1>}
           {children ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13.5px] text-muted">{children}</div> : null}
         </div>
       </div>

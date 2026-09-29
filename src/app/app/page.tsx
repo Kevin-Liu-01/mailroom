@@ -83,8 +83,8 @@ export default async function Dashboard() {
         title={mailbox.email}
         actions={<><Link href="/app/policy" className="btn"><SlidersHorizontal size={15} aria-hidden="true" /> Policy</Link><Link href="/app/search" className="btn"><Search size={15} aria-hidden="true" /> Search</Link></>}
       >
-        <Meta icon={PlugZap}>{needsReauth ? "needs reconnect" : mailbox.status === "active" ? "connected" : mailbox.status}</Meta>
-        <Meta icon={Clock}>last run {when(mailbox.lastRunAt)}</Meta>
+        <Meta icon={PlugZap}>{needsReauth ? "Needs reconnect" : mailbox.status === "active" ? "Connected" : mailbox.status.replace(/^./, (c) => c.toUpperCase())}</Meta>
+        <Meta icon={Clock}>Last run {when(mailbox.lastRunAt)}</Meta>
         <Meta icon={CalendarClock}><ScheduleToggle enabled={mailbox.scheduleEnabled} /></Meta>
       </PageHead>
 
@@ -96,10 +96,10 @@ export default async function Dashboard() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={Inbox} value={stats ? num(stats.inbox.threads) : "—"} label="in your inbox" />
-        <Stat icon={MailOpen} value={stats ? num(stats.inbox.unread) : "—"} label="unread" />
-        <Stat icon={Trash2} value={stats ? num(stats.system.TRASH?.threads ?? 0) : "—"} label="in trash" hint="30-day recovery" />
-        <Stat icon={Coins} value={spend} label="spent on Jev" hint={`${judged} judged`} />
+        <Stat icon={Inbox} value={stats ? num(stats.inbox.threads) : "—"} label="In your inbox" />
+        <Stat icon={MailOpen} value={stats ? num(stats.inbox.unread) : "—"} label="Unread" />
+        <Stat icon={Trash2} value={stats ? num(stats.system.TRASH?.threads ?? 0) : "—"} label="In trash" hint="30-day recovery" />
+        <Stat icon={Coins} value={spend} label="Spent on Jev" hint={`${judged} judged`} />
       </div>
 
       <section className="space-y-5">
@@ -161,7 +161,7 @@ export default async function Dashboard() {
                     <div className="min-w-0">
                       <p className="m-0 flex items-center gap-2 truncate font-bold">
                         <span className="truncate">{j.subject ?? "(no subject)"}</span>
-                        {live.get(j.messageId)?.unread ? <TonedChip tone="blue" className="shrink-0 py-0">unread</TonedChip> : live.has(j.messageId) ? <span className="chip shrink-0 py-0">read</span> : null}
+                        {live.get(j.messageId)?.unread ? <TonedChip tone="blue" className="shrink-0 py-0">Unread</TonedChip> : live.has(j.messageId) ? <span className="chip shrink-0 py-0">Read</span> : null}
                       </p>
                       <p className="m-0 truncate text-xs text-muted">{j.from}{j.judgment.threadMessages && j.judgment.threadMessages > 1 ? ` · ${j.judgment.threadMessages} messages` : ""}</p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">

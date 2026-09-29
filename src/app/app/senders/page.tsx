@@ -18,9 +18,9 @@ export default async function SendersPage() {
   return (
     <div className="section space-y-10">
       <PageHead icon={<Users size={26} />} title="Who fills your mailbox" actions={<ScanButton label={senders.length ? "Rescan senders" : "Scan senders"} />}>
-        <Meta icon={CalendarClock}>ninety days of senders</Meta>
-        <Meta icon={Eye}>how much you read</Meta>
-        <Meta icon={Gavel}>your standing decision</Meta>
+        <Meta icon={CalendarClock}>Ninety days of senders</Meta>
+        <Meta icon={Eye}>How much you read</Meta>
+        <Meta icon={Gavel}>Your standing decision</Meta>
       </PageHead>
       <SenderTable rows={senders.map((s) => ({ ...s, lastSeenAt: s.lastSeenAt ? s.lastSeenAt.toISOString() : null, decision: s.decision ?? null }))} mode="all" />
     </div>

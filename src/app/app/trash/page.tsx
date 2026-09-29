@@ -32,14 +32,14 @@ export default async function TrashPage() {
   return (
     <div className="section space-y-10">
       <PageHead icon={<Trash2 size={26} />} title="Know what to throw away">
-        <Meta icon={History}>trash keeps 30 days, undo keeps more</Meta>
+        <Meta icon={History}>Trash keeps 30 days, undo keeps more</Meta>
         <Meta icon={Users}>{num(senders.length)} senders scanned</Meta>
       </PageHead>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat icon={Users} value={num(candidates.length)} label="senders Jev calls disposable" hint={`${num(reclaimable)} messages reclaimable`} />
-        <Stat icon={Sparkles} value={num(disposable.length)} label="disposable messages" hint="judged ≥ 80% in the last 60 days, not yet trashed" />
-        <Stat icon={ListChecks} value={num(trashRules.length)} label="standing trash rules" hint={`daily, capped at ${num(mb.policy.aging.maxTrashPerRule)} per rule`} />
+        <Stat icon={Users} value={num(candidates.length)} label="Senders Jev calls disposable" hint={`${num(reclaimable)} messages reclaimable`} />
+        <Stat icon={Sparkles} value={num(disposable.length)} label="Disposable messages" hint="Judged ≥ 80% in the last 60 days, not yet trashed" />
+        <Stat icon={ListChecks} value={num(trashRules.length)} label="Standing trash rules" hint={`Daily, capped at ${num(mb.policy.aging.maxTrashPerRule)} per rule`} />
       </div>
 
       <section className="space-y-3">

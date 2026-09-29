@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "mailroom · privacy" };
+export const metadata = { title: "Mailroom · Privacy" };
 
 export default function Privacy() {
   return (

@@ -31,7 +31,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         <CardTitle icon={Tags} action={run.mode === "apply" && run.status === "ok" && batches.length ? <UndoButton runId={run.id} /> : null}>Label changes sent to Gmail</CardTitle>
         {batches.length ? (
           <table className="w-full text-left text-sm">
-            <thead className="text-xs text-muted"><tr><th className="py-1 pr-3">rule</th><th className="py-1 pr-3 text-right">messages</th><th className="py-1 pr-3">added</th><th className="py-1">removed</th></tr></thead>
+            <thead className="text-xs text-muted"><tr><th className="py-1 pr-3">Rule</th><th className="py-1 pr-3 text-right">Messages</th><th className="py-1 pr-3">Added</th><th className="py-1">Removed</th></tr></thead>
             <tbody>
               {batches.map((b) => (
                 <tr key={b.id} className="border-t border-line">

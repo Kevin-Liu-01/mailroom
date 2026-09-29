@@ -28,12 +28,12 @@ export default async function OpenGraphImage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={{ fontSize: 72, fontWeight: 700, letterSpacing: 2 }}>mailroom</div>
-              <div style={{ fontSize: 26, color: "#6a6a6a", letterSpacing: 4, textTransform: "uppercase" }}>a sorting room for your gmail</div>
+              <div style={{ fontSize: 26, color: "#6a6a6a", letterSpacing: 4, textTransform: "uppercase" }}>A sorting room for your Gmail</div>
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 28, lineHeight: 1.35 }}>
-            <div style={{ display: "flex" }}>rules you can read · typed AI judgments for pennies</div>
-            <div style={{ display: "flex" }}>natural-language search · a straight answer to what to trash</div>
+            <div style={{ display: "flex" }}>Rules you can read · Typed AI judgments for pennies</div>
+            <div style={{ display: "flex" }}>Natural-language search · A straight answer to what to trash</div>
             <div style={{ display: "flex", color: "#6a6a6a", fontSize: 22, marginTop: 10 }}>every run previews first and can be undone · mailroom.kevinliu.studio</div>
           </div>
         </div>

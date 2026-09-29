@@ -13,10 +13,10 @@ export type SenderRow = {
 };
 
 const REC_LABEL: Record<SenderRow["recommendation"]["rec"], { text: string; cls: string }> = {
-  "trash-all": { text: "could trash all", cls: "chip--warn" },
-  "trash-old": { text: "could trash after 30d", cls: "chip--warn" },
-  protect: { text: "protect", cls: "chip--accent" },
-  keep: { text: "keep", cls: "" },
+  "trash-all": { text: "Could trash all", cls: "chip--warn" },
+  "trash-old": { text: "Could trash after 30 days", cls: "chip--warn" },
+  protect: { text: "Protect", cls: "chip--accent" },
+  keep: { text: "Keep", cls: "" },
 };
 
 function unsubscribeUrl(h: string | null): string | null {
@@ -87,9 +87,9 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
                     {r.judgment ? (
                       <div className="grid gap-1">
                         <Meter value={r.judgment.categoryConfidence} label={r.judgment.category} width={50} />
-                        <Meter value={r.judgment.safeToTrashOld} label="disposable" strong width={50} />
-                        <Meter value={r.judgment.human} label="human" width={50} />
-                        <Meter value={r.judgment.transactional} label="records" width={50} />
+                        <Meter value={r.judgment.safeToTrashOld} label="Disposable" strong width={50} />
+                        <Meter value={r.judgment.human} label="Human" width={50} />
+                        <Meter value={r.judgment.transactional} label="Records" width={50} />
                       </div>
                     ) : "not judged yet"}
                   </td>
@@ -102,7 +102,7 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
                       {r.recommendation.rec !== "protect" || r.decision ? null : null}
                       <button className="btn btn-sm" disabled={busy !== null} title="Never trash or archive this sender" onClick={() => decide(r.domain, "protect")}><Shield size={13} /></button>
                       <ConfirmButton className="btn btn-sm" armedClassName="btn-primary btn-sm" disabled={busy !== null} label={<>30d <Trash2 size={13} /></>} confirmLabel="Trash older than 30d" onConfirm={() => decide(r.domain, "trash-old", true)} />
-                      <ConfirmButton className="btn btn-sm btn-danger" armedClassName="btn-danger btn-sm" disabled={busy !== null} label={<>all <Trash2 size={13} /></>} confirmLabel="Trash all from this sender" onConfirm={() => decide(r.domain, "trash-all", true)} />
+                      <ConfirmButton className="btn btn-sm btn-danger" armedClassName="btn-danger btn-sm" disabled={busy !== null} label={<>All <Trash2 size={13} /></>} confirmLabel="Trash all from this sender" onConfirm={() => decide(r.domain, "trash-all", true)} />
                       {mode === "all" ? <button className="btn btn-sm" disabled={busy !== null} title="A person: label Personal and keep important" onClick={() => decide(r.domain, "family")}><UserRound size={13} /></button> : null}
                       {unsub ? <a className="btn btn-sm" href={unsub} target="_blank" rel="noreferrer" title="Open the sender's unsubscribe link (you click it, Mailroom never does)"><ExternalLink size={13} /></a> : null}
                     </div>

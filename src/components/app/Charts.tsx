@@ -13,7 +13,7 @@ export function VolumeBars({ daily }: { daily: MailboxStats["daily"] }) {
         return <g key={d.date}><rect x={i * (bw + gap)} y={h - bh} width={bw} height={bh} fill={i === daily.length - 1 ? "var(--ink)" : "url(#bar-hatch)"} stroke="var(--ink)" strokeWidth=".8" /><title>{`${d.date}: ${d.received} received`}</title></g>;
       })}
       <text x="0" y={h + 13} fontSize="9" fill="var(--muted)">{daily[0]?.date.slice(5)}</text>
-      <text x={w} y={h + 13} fontSize="9" fill="var(--muted)" textAnchor="end">today</text>
+      <text x={w} y={h + 13} fontSize="9" fill="var(--muted)" textAnchor="end">Today</text>
     </svg>
   );
 }

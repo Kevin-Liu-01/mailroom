@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "mailroom · terms" };
+export const metadata = { title: "Mailroom · Terms" };
 
 export default function Terms() {
   return (

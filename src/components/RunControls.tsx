@@ -93,7 +93,7 @@ export function SummaryView({ summary }: { summary: RunSummary; mode?: string })
       {touched.length ? (
         <div className="overflow-x-auto">
           <table className="table">
-            <thead><tr><th>rule</th><th>kind</th><th className="text-right">matched</th><th className="text-right">applied</th><th>note</th></tr></thead>
+            <thead><tr><th>Rule</th><th>Kind</th><th className="text-right">Matched</th><th className="text-right">Applied</th><th>Note</th></tr></thead>
             <tbody>
               {touched.map((r) => (
                 <tr key={r.id}>

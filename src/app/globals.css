@@ -92,6 +92,8 @@
 }
 
 @layer components {
+  /* The one word not set in Berkeley Mono: "Gmail", in Google's own typeface, beside its four-color M. */
+  .gmail-word { font-family: var(--font-google-sans), "Google Sans", "Product Sans", system-ui, sans-serif; font-weight: 620; letter-spacing: -0.005em; }
   /* Frame: every top-level band shares the same inline rules. */
   .frame { width: min(calc(100% - 48px), 1280px); margin-inline: auto; border-inline: 1px solid var(--line); }
   @media (max-width: 720px) { .frame { width: calc(100% - 20px); } }

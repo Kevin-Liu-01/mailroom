@@ -31,7 +31,7 @@ function Reading({ c }: { c: CompiledQuery }) {
   return (
     <details className="group">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] text-muted hover:text-ink">
-        <Sparkles size={14} aria-hidden="true" /> how Jev read it <ChevronDown size={14} className="transition group-open:rotate-180" aria-hidden="true" />
+        <Sparkles size={14} aria-hidden="true" /> How Jev read it <ChevronDown size={14} className="transition group-open:rotate-180" aria-hidden="true" />
       </summary>
       <div className="mt-3 grid gap-4 border-t border-line pt-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
         <div>
@@ -50,13 +50,13 @@ function Reading({ c }: { c: CompiledQuery }) {
         </div>
         <div className="space-y-1.5">
           <div className="font-bold">Intent</div>
-          <TonedMeter value={j.intents.reply} label="wants what I owe" tone="red" width={60} />
+          <TonedMeter value={j.intents.reply} label="Wants what I owe" tone="red" width={60} />
           <br />
-          <TonedMeter value={j.intents.waiting} label="wants what they owe" tone="amber" width={60} />
+          <TonedMeter value={j.intents.waiting} label="Wants what they owe" tone="amber" width={60} />
           <br />
-          <TonedMeter value={j.intents.people} label="humans only" tone="green" width={60} />
+          <TonedMeter value={j.intents.people} label="Humans only" tone="green" width={60} />
           <br />
-          <TonedMeter value={j.intents.count} label="wants a count" tone="blue" width={60} />
+          <TonedMeter value={j.intents.count} label="Wants a count" tone="blue" width={60} />
         </div>
         <div className="text-muted">
           <div className="font-bold text-ink">Then code</div>
@@ -177,13 +177,13 @@ export function SearchResults({ q }: { q: string }) {
               </div>
             ) : n?.senders.length ? (
               <div className="min-w-0">
-                <div className="text-[12px] text-muted">top senders</div>
+                <div className="text-[12px] text-muted">Top senders</div>
                 <div className="mt-1 flex flex-wrap gap-1.5">{n.senders.slice(0, 6).map((s) => <span key={s.domain} className="chip">{s.domain} <b>{s.count}</b></span>)}</div>
               </div>
             ) : null}
             {n?.labels.length ? (
               <div className="min-w-0">
-                <div className="text-[12px] text-muted">labels</div>
+                <div className="text-[12px] text-muted">Labels</div>
                 <div className="mt-1 flex flex-wrap gap-1.5">{n.labels.slice(0, 6).map((l) => <span key={l.label} className="chip">{l.label} <b>{l.count}</b></span>)}</div>
               </div>
             ) : null}
@@ -191,16 +191,16 @@ export function SearchResults({ q }: { q: string }) {
 
           {data.compiled ? (
             <div className="flex flex-wrap items-center gap-1.5 border-t border-line pt-4 text-[13px]">
-              <span className="text-muted">understood as</span>
+              <span className="text-muted">Understood as</span>
               {data.compiled.parts.length ? data.compiled.parts.map((p, i) => (
                 <span key={i} className={`chip ${p.source === "ai" ? "chip--accent" : ""}`} title={p.source === "ai" ? `Jev · ${p.confidence !== undefined ? pct(p.confidence) : ""}` : "from your words"}>
                   {p.label}: {p.value}{p.source === "ai" && p.confidence !== undefined ? <span className="opacity-70"> · {pct(p.confidence)}</span> : null}
                 </span>
-              )) : <span className="chip">everything</span>}
+              )) : <span className="chip">Everything</span>}
             </div>
           ) : null}
           <div className="flex flex-wrap items-center gap-2 text-[13px]">
-            <span className="text-muted">gmail</span>
+            <span className="text-muted">Gmail</span>
             {rawMode ? (
               <form className="flex flex-1 gap-2" onSubmit={(e) => { e.preventDefault(); run({ gmail: raw }); }}>
                 <input className="input" style={{ minHeight: 36 }} value={raw} onChange={(e) => setRaw(e.target.value)} />
@@ -247,7 +247,7 @@ export function SearchResults({ q }: { q: string }) {
               <span className="inline-flex overflow-hidden rounded-[4px] border border-line">
                 {(["all", "unread", "read"] as const).map((f) => <button key={f} type="button" className={`px-2 py-1 text-[12px] ${readFilter === f ? "bg-ink text-page" : "text-muted hover:text-ink"}`} onClick={() => setReadFilter(f)}>{f}</button>)}
               </span>
-              {primary ? <label className="flex items-center gap-1.5"><input type="checkbox" checked={onlyLikely} onChange={(e) => setOnlyLikely(e.target.checked)} /> only likely (≥70%)</label> : null}
+              {primary ? <label className="flex items-center gap-1.5"><input type="checkbox" checked={onlyLikely} onChange={(e) => setOnlyLikely(e.target.checked)} /> Only likely (≥70%)</label> : null}
               {primary ? <button className="btn btn-sm" type="button" onClick={() => setSort(sort === "jev" ? "newest" : "jev")}><ArrowDownUp size={13} /> {sort === "jev" ? "by Jev" : "newest"}</button> : null}
               {msg ? <span className="flex items-center gap-1"><Check size={13} /> {msg}</span> : null}
               {lastRun ? <button className="btn btn-sm" onClick={undo}><Undo2 size={13} /> Undo</button> : null}
@@ -266,7 +266,7 @@ export function SearchResults({ q }: { q: string }) {
                     <div className="flex min-w-0 items-baseline gap-2">
                       <span className={`truncate text-[14px] ${r.unread ? "font-bold" : "font-medium"}`}>{s.name}</span>
                       <span className="truncate text-[12px] text-muted">{s.domain}</span>
-                      {r.latestUnread ? <TonedChip tone="blue" className="py-0">{r.unread > 1 ? `${r.unread} unread` : "unread"}</TonedChip> : <span className="chip py-0">read</span>}
+                      {r.latestUnread ? <TonedChip tone="blue" className="py-0">{r.unread > 1 ? `${r.unread} unread` : "unread"}</TonedChip> : <span className="chip py-0">Read</span>}
                     </div>
                     <div className={`truncate text-[14.5px] ${r.unread ? "font-bold" : ""}`}>{r.subject}</div>
                     <div className="truncate text-[13px] text-muted">{r.snippet}</div>
@@ -278,13 +278,13 @@ export function SearchResults({ q }: { q: string }) {
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                       {order.map((k) => (sig[k] !== undefined ? <TonedMeter key={k} value={sig[k]!} label={SIGNAL_LABEL[k]} tone={SIGNAL_TONE[k] ?? "ink"} strong={k === primary} /> : null))}
                       {r.labels.slice(0, 4).map((l) => <span key={l} className="chip">{l}</span>)}
-                      {r.starred ? <span className="chip">starred</span> : null}
-                      {!r.inInbox ? <span className="chip">archived</span> : null}
+                      {r.starred ? <span className="chip">Starred</span> : null}
+                      {!r.inInbox ? <span className="chip">Archived</span> : null}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 text-right">
                     <span className="whitespace-nowrap text-[12.5px] text-muted">{r.date ? when(r.date) : ""}</span>
-                    <a className="inline-flex items-center gap-1 text-[12px] text-muted hover:text-ink" href={`https://mail.google.com/mail/u/0/#all/${r.threadId}`} target="_blank" rel="noreferrer">open <ExternalLink size={11} /></a>
+                    <a className="inline-flex items-center gap-1 text-[12px] text-muted hover:text-ink" href={`https://mail.google.com/mail/u/0/#all/${r.threadId}`} target="_blank" rel="noreferrer">Open <ExternalLink size={11} /></a>
                   </div>
                 </li>
               );

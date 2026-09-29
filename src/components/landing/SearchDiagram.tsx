@@ -31,24 +31,24 @@ export function SearchDiagram() {
       <div className="p-4 sm:p-5">
         <div className="flex items-center gap-3 rounded-[6px] border border-ink bg-panel px-3.5 py-3">
           <Search size={18} className="shrink-0 text-ink" aria-hidden="true" />
-          <span className="cursor min-w-0 flex-1 text-[15px] font-bold leading-snug sm:text-[16px]">receipts from uber last month</span>
+          <span className="cursor min-w-0 flex-1 text-[15px] font-bold leading-snug sm:text-[16px]">Receipts from Uber last month</span>
           <span className="kbd ml-auto hidden shrink-0 sm:inline-block">Enter</span>
         </div>
       </div>
-      <Down label="compile" />
+      <Down label="Compile" />
       <div className="px-4 sm:px-5">
         <div className="flex flex-wrap gap-2">
-          <span className="chip chip--accent"><Tag size={13} aria-hidden="true" />category: Receipts</span>
-          <span className="chip chip--accent"><AtSign size={13} aria-hidden="true" />sender: uber.com</span>
-          <span className="chip chip--accent"><CalendarDays size={13} aria-hidden="true" />window: 30 days</span>
+          <span className="chip chip--accent"><Tag size={13} aria-hidden="true" />Category: Receipts</span>
+          <span className="chip chip--accent"><AtSign size={13} aria-hidden="true" />Sender: uber.com</span>
+          <span className="chip chip--accent"><CalendarDays size={13} aria-hidden="true" />Window: 30 days</span>
         </div>
         <pre className="mono mt-3 overflow-x-auto rounded-[6px] border border-line bg-panel px-3.5 py-2.5 text-[13.5px] leading-relaxed">{QUERY}</pre>
       </div>
-      <Down label="run, then rerank with Jev" />
+      <Down label="Run, then rerank with Jev" />
       <div className="border-t border-line bg-panel">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 pb-3 pt-4 sm:px-5">
           <span className="display text-[clamp(24px,3vw,32px)] leading-none">{RESULTS.length} results <span className="text-muted">· {unread} unread</span></span>
-          <span className="text-[12px] text-muted">relevance from Jev</span>
+          <span className="text-[12px] text-muted">Relevance from Jev</span>
         </div>
         <ul className="m-0 list-none p-0">
           {RESULTS.map((r) => (
