@@ -1,6 +1,6 @@
 /** Words the compiler recognizes without asking the model. Everything else is a sender hint, a name, or a topic term. */
 export const STOPWORDS = new Set(
-  "a an the of for from to in on at by with about and or but me my i im i'm mine our we us you your it its this that these those is are was were be been being do does did have has had show find search look get give list all any some every please can could would want wants need needs mail mails email emails message messages msg msgs thread threads stuff things thing anything something everything inbox gmail sent got received ones one who which what where when how many much most still yet send sends sending get gets getting did does doing come came coming arrived arrive".split(" "),
+  "a an the of for from to in on at by with about and or but me my i im i'm mine our we us you your it its this that these those is are was were be been being do does did have has had show find search look get give list all any some every please can could would want wants need needs mail mails email emails message messages msg msgs thread threads stuff things thing anything something everything inbox gmail sent got received ones one who which what where when how many much most still yet send sends sending get gets getting did does doing come came coming arrived arrive people person persons folks someone anyone everyone somebody anybody contacts guys".split(" "),
 );
 
 export const FLAG_WORDS: Record<string, RegExp> = {
