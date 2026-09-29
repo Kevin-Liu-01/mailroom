@@ -24,7 +24,7 @@ export async function rerankThreads(query: CompiledQuery, rows: ThreadRow[], use
   if (!want.relevance && !want.needsReply && !want.human && !want.disposable && !want.urgency && !want.waiting) return { signals, inputTokens, requests };
   const questions = {
     ...(want.relevance ? { relevance: score({ question: "How well does this email match what the user is searching for, given in `search`?", note: "Judge the subject matter, not the sender's importance." }, RELEVANCE_LEVELS) } : {}),
-    ...(want.needsReply ? { needs_reply: noul({ question: "Does the recipient still owe the other party a reply or an action in this conversation?", note: "`thread.last_message_from` says who spoke last and `thread.recipient_replied_after` whether the recipient already answered. A courtesy close such as 'thanks, noted' asks for nothing." }, { true: "The other party is waiting on the recipient to answer, decide, schedule, or send something.", false: "Nothing is owed: already answered, purely informational, or a closing courtesy." }) } : {}),
+    ...(want.needsReply ? { needs_reply: noul({ question: "Does the recipient still owe the other party a reply or an action in this conversation?", note: "`thread.last_message_from` says who spoke last and `thread.recipient_replied_after` whether the recipient already answered. `latest_message.recipient_has_read_it` false means the recipient has not even seen it yet. A courtesy close such as 'thanks, noted' asks for nothing." }, { true: "The other party is waiting on the recipient to answer, decide, schedule, or send something.", false: "Nothing is owed: already answered, purely informational, or a closing courtesy." }) } : {}),
     ...(want.waiting ? { waiting: noul({ question: "Is the recipient waiting for the other party to respond to the recipient's last message?", note: "The recipient wrote the latest message in this thread." }, { true: "The recipient asked a question or made a request that has had no answer.", false: "The recipient's message closed the conversation or needs no answer." }) } : {}),
     ...(want.human ? { human: noul("Was this written by a person for this recipient rather than generated in bulk?", { true: "A human wrote it.", false: "Automated, campaign, or notification." }) } : {}),
     ...(want.disposable ? { disposable: noul("Once seen, would nothing be lost by trashing this email?", { true: "Disposable.", false: "A record, receipt, ticket, or personal message worth keeping." }) } : {}),
@@ -37,7 +37,7 @@ export async function rerankThreads(query: CompiledQuery, rows: ThreadRow[], use
         state: {
           recipient: userEmail,
           search: query.input,
-          latest_message: { from: m.headers["from"] ?? "", to: m.headers["to"] ?? "", subject: m.headers["subject"] ?? "", date: m.headers["date"] ?? "", preview: m.snippet.slice(0, 500), is_reply: Boolean(m.headers["in-reply-to"]) || /^\s*re:/i.test(m.headers["subject"] ?? "") },
+          latest_message: { from: m.headers["from"] ?? "", to: m.headers["to"] ?? "", subject: m.headers["subject"] ?? "", date: m.headers["date"] ?? "", preview: m.snippet.slice(0, 500), is_reply: Boolean(m.headers["in-reply-to"]) || /^\s*re:/i.test(m.headers["subject"] ?? ""), recipient_has_read_it: !m.labelIds.includes("UNREAD"), starred: m.labelIds.includes("STARRED") },
           thread: {
             messages: row.total ?? row.matched,
             last_message_from: row.lastFromMe === undefined ? "unknown" : row.lastFromMe ? "recipient" : "other party",

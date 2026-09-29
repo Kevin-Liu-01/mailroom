@@ -4,7 +4,9 @@ export const STOPWORDS = new Set(
 );
 
 export const FLAG_WORDS: Record<string, RegExp> = {
-  unread: /\b(unread|haven'?t read|not read|unopened|never (open|opened|read)|don'?t open|didn'?t open|haven'?t opened)\b/i,
+  unread: /\b(unread|unseen|haven'?t (read|seen|looked at|opened|gotten to)|not (read|seen|opened) yet|not read|unopened|never (open|opened|read)|don'?t open|didn'?t (open|see)|missed)\b/i,
+  // Explicit "already read" only; a bare "read" is too ambiguous to act on.
+  alreadyRead: /\b(already (read|seen|opened)|i(?:'ve| have) (?:already )?(read|seen|opened)|(read|seen|opened) but (not|never|haven'?t)|read (mail|emails?|messages?))\b/i,
   starred: /\b(starred|stars?)\b/i,
   attachments: /\b(attachments?|attached|files?)\b/i,
   pdf: /\b(pdfs?|invoice pdf)\b/i,

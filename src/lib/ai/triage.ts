@@ -28,6 +28,7 @@ export function messageState(meta: GmailMessageMeta, userEmail: string, thread?:
     subject: h["subject"] ?? "",
     date: h["date"] ?? "",
     is_reply: Boolean(h["in-reply-to"]) || /^\s*re:/i.test(h["subject"] ?? ""),
+    status: { recipient_has_read_it: !meta.labelIds.includes("UNREAD"), starred: meta.labelIds.includes("STARRED"), in_inbox: meta.labelIds.includes("INBOX") },
     thread: thread ? { messages: thread.total, last_message_from: thread.lastFromMe ? "recipient" : "other party", recipient_replied_after_this: thread.repliedAfterLatest } : null,
     preview: meta.snippet.slice(0, 600),
     bulk_headers: {

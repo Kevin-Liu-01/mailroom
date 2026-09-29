@@ -258,6 +258,7 @@ export async function compileSearch(input: string, ctx: { now?: Date; knownSende
   for (const f of flagSet) {
     switch (f) {
       case "unread": clauses.push("is:unread"); parts.push({ kind: "flag", label: "Status", value: "unread", source: "rule" }); break;
+      case "alreadyRead": if (!flagSet.has("unread")) { clauses.push("-is:unread"); parts.push({ kind: "flag", label: "Status", value: "read", source: "rule" }); } break;
       case "starred": clauses.push("is:starred"); parts.push({ kind: "flag", label: "Status", value: "starred", source: "rule" }); break;
       case "attachments": if (!flagSet.has("pdf")) { clauses.push("has:attachment"); parts.push({ kind: "flag", label: "Has", value: "attachment", source: "rule" }); } break;
       case "pdf": clauses.push("filename:pdf"); parts.push({ kind: "flag", label: "Has", value: "PDF", source: "rule" }); break;

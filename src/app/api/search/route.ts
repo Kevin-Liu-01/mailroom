@@ -99,14 +99,17 @@ export async function POST(req: Request) {
       return {
         threadId: r.threadId, ids: r.messageIds, matched: r.matched, total: r.total ?? null, lastFromMe: r.lastFromMe ?? null, participants: r.participants,
         from: m.headers["from"] ?? "", subject: m.headers["subject"] ?? "(no subject)", date: m.internalDate ? new Date(Number(m.internalDate)).toISOString() : null,
-        snippet: m.snippet, unread: r.unread, starred: m.labelIds.includes("STARRED"), inInbox: m.labelIds.includes("INBOX"),
+        snippet: m.snippet, unread: r.unread, latestUnread: m.labelIds.includes("UNREAD"), starred: m.labelIds.includes("STARRED"), inInbox: m.labelIds.includes("INBOX"),
         labels: m.labelIds.filter((l) => !l.startsWith("CATEGORY_") && !["UNREAD", "INBOX", "IMPORTANT", "STARRED", "SENT"].includes(l)).map((l) => idToLabel.get(l) ?? l),
         signals: signals.get(r.threadId) ?? null,
       };
     });
     let dropped = 0;
     if (compiled && signals.size) {
-      results.sort((a, b) => scoreOf(compiled!, a.signals ?? undefined) - scoreOf(compiled!, b.signals ?? undefined) || 0).reverse();
+      // Something owed that you have not even opened comes first.
+      const owed = compiled.rerank.needsReply || compiled.rerank.urgency;
+      const rank = (r: (typeof results)[number]) => scoreOf(compiled!, r.signals ?? undefined) + (owed && r.latestUnread ? 0.15 : 0);
+      results.sort((a, b) => rank(b) - rank(a) || (b.date ?? "").localeCompare(a.date ?? ""));
       // Drop what a strong negative rules out for the signal the question was about.
       const kept = results.filter((r) => {
         const s = r.signals;
@@ -120,7 +123,8 @@ export async function POST(req: Request) {
       dropped = results.length - kept.length;
       results = kept;
     }
-    return NextResponse.json({ compiled, gmail: gmailQuery, total: allIds.length, numbers, distribution, primary, results, dropped, excluded, cost: { inputTokens, requests, usd: inputTokens * USD_PER_INPUT_TOKEN }, model: model ?? null });
+    const readState = { unseen: results.filter((r) => r.latestUnread).length, seen: results.filter((r) => !r.latestUnread).length };
+    return NextResponse.json({ compiled, gmail: gmailQuery, total: allIds.length, numbers, distribution, readState, primary, results, dropped, excluded, cost: { inputTokens, requests, usd: inputTokens * USD_PER_INPUT_TOKEN }, model: model ?? null });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }

@@ -16,6 +16,9 @@ import { LabelBars, TabStack, VolumeBars } from "@/components/app/Charts";
 import { RefreshStats } from "@/components/app/RefreshStats";
 import { Bars, CardTitle, Empty, Meta, Meter, PageHead, Stat } from "@/components/app/Bits";
 import { latestSnapshot } from "@/lib/engine/stats";
+import { gmailFor } from "@/lib/engine/run";
+import { mapLimit } from "@/lib/gmail/client";
+import { summarizeThread } from "@/lib/search/threads";
 import { senderOverview } from "@/lib/engine/senders";
 import { USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
 import { daysAgo, num, usd, when } from "@/lib/format";
@@ -37,6 +40,7 @@ export default async function Dashboard() {
     latestSnapshot(userId),
     senderOverview(userId, mailbox.policy),
   ]);
+  const needsReauth = mailbox.status === "needs_reauth";
   const since = daysAgo(14);
   const recent = await db.select().from(schema.aiJudgments).where(and(eq(schema.aiJudgments.userId, userId), gte(schema.aiJudgments.createdAt, since))).orderBy(desc(schema.aiJudgments.receivedAt)).limit(300);
   // One row per conversation, newest first, and nothing the user has already answered.
@@ -45,6 +49,22 @@ export default async function Dashboard() {
     .filter((j) => j.actions.some((a) => a.endsWith("flag:action")) && !j.judgment.repliedAfter)
     .filter((j) => { const key = j.threadId ?? j.messageId; if (seenThreads.has(key)) return false; seenThreads.add(key); return true; })
     .slice(0, 8);
+  // Read state and who spoke last, from Gmail now rather than from judgment time, so the list is what is actually still needed.
+  const live = new Map<string, { unread: boolean; lastFromMe: boolean | null }>();
+  if (!needsReauth) {
+    try {
+      const { gmail, email } = await gmailFor(userId);
+      await mapLimit(attention, 6, async (j) => {
+        const [meta, thread] = await Promise.all([
+          gmail.getMessageMeta(j.messageId, ["From"]).catch(() => null),
+          j.threadId ? gmail.getThreadMeta(j.threadId).then((t) => summarizeThread(t.messages, email)).catch(() => null) : Promise.resolve(null),
+        ]);
+        live.set(j.messageId, { unread: meta ? meta.labelIds.includes("UNREAD") : false, lastFromMe: thread ? thread.lastFromMe : null });
+      });
+    } catch { /* the dashboard still renders without live state */ }
+  }
+  const needed = attention.filter((j) => live.get(j.messageId)?.lastFromMe !== true);
+  const unseen = needed.filter((j) => live.get(j.messageId)?.unread).length;
   const byCategory = new Map<string, number>();
   for (const j of recent) byCategory.set(j.judgment.category, (byCategory.get(j.judgment.category) ?? 0) + 1);
   const categoryRows = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, count]) => ({ label: LABEL_BY_CATEGORY[id as CategoryId] ?? id, value: count }));
@@ -53,7 +73,6 @@ export default async function Dashboard() {
   const reclaimable = trashCandidates.reduce((n, s) => n + s.messages, 0);
   const decided = senders.filter((s) => s.decision).length;
   const firstTime = runs.length === 0;
-  const needsReauth = mailbox.status === "needs_reauth";
   const spend = usd(Number(agg?.tokens ?? 0) * USD_PER_INPUT_TOKEN);
   const judged = num(Number(agg?.judged ?? 0));
 
@@ -130,15 +149,21 @@ export default async function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="space-y-4 lg:col-span-2">
-          <CardTitle icon={Flag} action={<Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} aria-hidden="true" /> Find more</Link>}>Needs your attention</CardTitle>
-          {attention.length ? (
+          <CardTitle icon={Flag} action={<Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} aria-hidden="true" /> Find more</Link>}>
+            What&apos;s needed
+            {needed.length ? <span className="ml-2 text-[12.5px] font-normal text-muted">{unseen} you haven&apos;t opened · {needed.length - unseen} seen, not answered</span> : null}
+          </CardTitle>
+          {needed.length ? (
             <ul className="card m-0 list-none divide-y divide-line p-0">
-              {attention.map((j) => (
+              {needed.map((j) => (
                 <li key={j.messageId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="tile tile--sm" aria-hidden="true"><Flag size={14} /></span>
                     <div className="min-w-0">
-                      <p className="m-0 truncate font-bold">{j.subject ?? "(no subject)"}</p>
+                      <p className="m-0 flex items-center gap-2 truncate font-bold">
+                        <span className="truncate">{j.subject ?? "(no subject)"}</span>
+                        {live.get(j.messageId)?.unread ? <span className="chip chip--accent shrink-0" style={{ padding: "0 6px" }}>unread</span> : live.has(j.messageId) ? <span className="chip shrink-0" style={{ padding: "0 6px" }}>read</span> : null}
+                      </p>
                       <p className="m-0 truncate text-xs text-muted">{j.from}{j.judgment.threadMessages && j.judgment.threadMessages > 1 ? ` · ${j.judgment.threadMessages} messages` : ""}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Meter value={j.judgment.needsAction} label="action" strong />
@@ -151,13 +176,13 @@ export default async function Dashboard() {
                 </li>
               ))}
             </ul>
-          ) : <Empty icon={Flag}>Nothing flagged in the last two weeks. Flags come from the triage step of each run.</Empty>}
+          ) : <Empty icon={Flag}>Nothing is waiting on you from the last two weeks. Flags come from the triage step of each run, and threads you answer since drop off here.</Empty>}
         </section>
         <section className="card space-y-4 self-start">
           <CardTitle icon={Sparkles}>Jev, last two weeks</CardTitle>
           {recent.length ? (
             <>
-              <p className="m-0 text-[13.5px] text-muted"><b className="text-ink">{num(recent.length)}</b> messages judged · <b className="text-ink">{num(attention.length)}</b> still need you</p>
+              <p className="m-0 text-[13.5px] text-muted"><b className="text-ink">{num(recent.length)}</b> messages judged · <b className="text-ink">{num(needed.length)}</b> still need you</p>
               <Bars rows={categoryRows} />
               <div className="grid gap-1.5 border-t border-line pt-3">
                 <Meter value={avg("categoryConfidence")} label="avg category confidence" width={70} />

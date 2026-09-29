@@ -10,11 +10,11 @@ import { num, pct, usd, when } from "@/lib/format";
 
 type Result = {
   threadId: string; ids: string[]; matched: number; total: number | null; lastFromMe: boolean | null; participants: string[];
-  from: string; subject: string; date: string | null; snippet: string; unread: number; starred: boolean; inInbox: boolean; labels: string[]; signals: Signals | null;
+  from: string; subject: string; date: string | null; snippet: string; unread: number; latestUnread: boolean; starred: boolean; inInbox: boolean; labels: string[]; signals: Signals | null;
 };
 type Numbers = { total: number; capped: boolean; sampled: number; threads: number; unread: number; senders: { domain: string; count: number }[]; labels: { label: string; count: number }[] };
 type Distribution = { signal: keyof Signals; likely: number; unsure: number; unlikely: number } | null;
-type Response = { compiled: CompiledQuery | null; gmail: string; total: number; numbers?: Numbers; distribution?: Distribution; primary?: keyof Signals | null; results: Result[]; dropped: number; excluded?: number; cost: { inputTokens: number; requests?: number; usd: number }; model?: string | null; error?: string };
+type Response = { compiled: CompiledQuery | null; gmail: string; total: number; numbers?: Numbers; distribution?: Distribution; readState?: { unseen: number; seen: number }; primary?: keyof Signals | null; results: Result[]; dropped: number; excluded?: number; cost: { inputTokens: number; requests?: number; usd: number }; model?: string | null; error?: string };
 
 const SIGNAL_LABEL: Record<keyof Signals, string> = { relevance: "relevant", needsReply: "needs my reply", waiting: "waiting on them", human: "human", disposable: "disposable", urgency: "urgent" };
 const SIGNAL_ORDER: (keyof Signals)[] = ["needsReply", "waiting", "relevance", "urgency", "human", "disposable"];
@@ -80,6 +80,7 @@ export function SearchResults({ q }: { q: string }) {
   const [labelName, setLabelName] = useState("");
   const [sort, setSort] = useState<"jev" | "newest">("jev");
   const [onlyLikely, setOnlyLikely] = useState(false);
+  const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">("all");
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
 
@@ -99,9 +100,11 @@ export function SearchResults({ q }: { q: string }) {
   const results = useMemo(() => {
     let rows = data?.results ?? [];
     if (onlyLikely && primary) rows = rows.filter((r) => (r.signals?.[primary] ?? 0) >= 0.7);
+    if (readFilter === "unread") rows = rows.filter((r) => r.latestUnread);
+    if (readFilter === "read") rows = rows.filter((r) => !r.latestUnread);
     if (sort === "newest") rows = [...rows].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
     return rows;
-  }, [data, onlyLikely, primary, sort]);
+  }, [data, onlyLikely, primary, sort, readFilter]);
   const allSelected = useMemo(() => results.length > 0 && results.every((r) => selected.has(r.threadId)), [results, selected]);
   function toggleAll() { setSelected(allSelected ? new Set() : new Set(results.map((r) => r.threadId))); }
   function toggle(id: string) { const n = new Set(selected); if (n.has(id)) n.delete(id); else n.add(id); setSelected(n); }
@@ -153,7 +156,7 @@ export function SearchResults({ q }: { q: string }) {
               <div className="display text-[clamp(40px,5vw,64px)] leading-none">{countMode ? `${num(data.total)}${n?.capped ? "+" : ""}` : num(shownThreads)}</div>
               <div className="mt-1 text-[13px] text-muted">
                 {countMode ? "messages match" : `conversations · ${num(data.total)}${n?.capped ? "+" : ""} messages match`}
-                {n && !countMode ? ` · ${num(n.unread)} unread of ${num(n.sampled)} read` : ""}
+                {data.readState && !countMode ? ` · ${num(data.readState.unseen)} you haven't opened, ${num(data.readState.seen)} you have` : n && countMode ? ` · ${num(n.unread)} unread of ${num(n.sampled)} read` : ""}
                 {data.excluded ? ` · ${num(data.excluded)} left out because you spoke last` : ""}
               </div>
             </div>
@@ -225,7 +228,7 @@ export function SearchResults({ q }: { q: string }) {
         </div>
       ) : null}
 
-      {results.length || (data?.results.length && onlyLikely) ? (
+      {results.length || (data?.results.length && (onlyLikely || readFilter !== "all")) ? (
         <div className="card p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={allSelected} onChange={toggleAll} /> {selected.size ? `${selected.size} selected` : "select all"}</label>
@@ -241,6 +244,9 @@ export function SearchResults({ q }: { q: string }) {
               <ConfirmButton className="btn btn-sm" armedClassName="btn-primary btn-sm" disabled={!selected.size || loading} icon={<Trash2 size={13} aria-hidden="true" />} label="Trash" confirmLabel={`Trash ${selectedMessageIds.length} messages`} message="Gmail keeps them 30 days, undoable here." onConfirm={() => act("trash")} />
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-muted">
+              <span className="inline-flex overflow-hidden rounded-[4px] border border-line">
+                {(["all", "unread", "read"] as const).map((f) => <button key={f} type="button" className={`px-2 py-1 text-[12px] ${readFilter === f ? "bg-ink text-page" : "text-muted hover:text-ink"}`} onClick={() => setReadFilter(f)}>{f}</button>)}
+              </span>
               {primary ? <label className="flex items-center gap-1.5"><input type="checkbox" checked={onlyLikely} onChange={(e) => setOnlyLikely(e.target.checked)} /> only likely (≥70%)</label> : null}
               {primary ? <button className="btn btn-sm" type="button" onClick={() => setSort(sort === "jev" ? "newest" : "jev")}><ArrowDownUp size={13} /> {sort === "jev" ? "by Jev" : "newest"}</button> : null}
               {msg ? <span className="flex items-center gap-1"><Check size={13} /> {msg}</span> : null}
@@ -260,7 +266,7 @@ export function SearchResults({ q }: { q: string }) {
                     <div className="flex min-w-0 items-baseline gap-2">
                       <span className={`truncate text-[14px] ${r.unread ? "font-bold" : "font-medium"}`}>{s.name}</span>
                       <span className="truncate text-[12px] text-muted">{s.domain}</span>
-                      {r.unread ? <span className="chip chip--accent" style={{ padding: "0 6px" }}>{r.unread > 1 ? `${r.unread} unread` : "unread"}</span> : null}
+                      {r.latestUnread ? <span className="chip chip--accent" style={{ padding: "0 6px" }}>{r.unread > 1 ? `${r.unread} unread` : "unread"}</span> : <span className="chip" style={{ padding: "0 6px" }}>read</span>}
                     </div>
                     <div className={`truncate text-[14.5px] ${r.unread ? "font-bold" : ""}`}>{r.subject}</div>
                     <div className="truncate text-[13px] text-muted">{r.snippet}</div>
@@ -283,7 +289,7 @@ export function SearchResults({ q }: { q: string }) {
                 </li>
               );
             })}
-            {!results.length ? <li className="px-4 py-3 text-sm text-muted">Nothing at 70% or above. Untick “only likely” to see the rest.</li> : null}
+            {!results.length ? <li className="px-4 py-3 text-sm text-muted">Nothing matches these filters. Widen “only likely” or the read filter to see the rest.</li> : null}
           </ol>
         </div>
       ) : data && !errorText && !loading ? <p className="card text-sm text-muted">Nothing matched. Loosen the question, or edit the Gmail query.</p> : null}
