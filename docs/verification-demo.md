@@ -58,3 +58,18 @@ and at most 100 people can connect.
 ```bash
 ffmpeg -i demo.mov -vf "scale=1920:-2,fps=30" -c:v libx264 -pix_fmt yuv420p -crf 20 -an demo.mp4
 ```
+
+## 2026-09-29 re-cut (v3)
+
+Kevin noticed the video had giant white margins. The consent screens (5–26 s) and the Gmail Settings segment (46–48 s)
+had been captured at a smaller window size and padded with white to 1316×896. v3 crops those segments to their content
+and scales them back to the canvas, and cuts a 0.8 s white flash:
+
+```bash
+ffmpeg -i mailroom-demo-v2.mp4 -filter_complex "[0:v]trim=0:5.13,setpts=PTS-STARTPTS[a];[0:v]trim=5.13:26.0,setpts=PTS-STARTPTS,crop=878:598:0:0,scale=1316:896:flags=lanczos[b];[0:v]trim=26.0:45.6,setpts=PTS-STARTPTS[c];[0:v]trim=46.4:48.6,setpts=PTS-STARTPTS,crop=1198:816:0:0,scale=1316:896:flags=lanczos[d];[0:v]trim=48.6,setpts=PTS-STARTPTS[e];[a][b][c][d][e]concat=n=5:v=1:a=0,format=yuv420p[v]" -map "[v]" -c:v libx264 -crf 18 -r 15 -movflags +faststart mailroom-demo-v3.mp4
+```
+
+The blur over the Filters page survives the crop (it is baked into v2's pixels). v3 is unlisted at
+https://youtu.be/k2CBwddGPUI and is the link on the Data Access page; v1 (mKZpCdDcXH0) and v2 (bcbSblgWA88) are Private.
+Segment boundaries came from classifying every frame's non-white bounding box with Pillow (see the session log).
+
