@@ -14,7 +14,7 @@ import { SignInButton } from "@/components/SignInButton";
 import { SearchBox } from "@/components/app/SearchBox";
 import { LabelBars, TabStack, VolumeBars } from "@/components/app/Charts";
 import { RefreshStats } from "@/components/app/RefreshStats";
-import { Bars, CardTitle, Empty, Meta, Meter, PageHead, Stat } from "@/components/app/Bits";
+import { Bars, CATEGORY_TONE, CardTitle, CategoryChip, Empty, Meta, PageHead, SectionTitle, SenderMark, Stat, TonedChip, TonedMeter } from "@/components/app/Bits";
 import { latestSnapshot } from "@/lib/engine/stats";
 import { gmailFor } from "@/lib/engine/run";
 import { mapLimit } from "@/lib/gmail/client";
@@ -77,7 +77,7 @@ export default async function Dashboard() {
   const judged = num(Number(agg?.judged ?? 0));
 
   return (
-    <div className="section space-y-10">
+    <div className="section space-y-14">
       <PageHead
         icon={<GmailMark size={30} />}
         title={mailbox.email}
@@ -96,24 +96,24 @@ export default async function Dashboard() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={Inbox} value={stats ? num(stats.inbox.threads) : "—"} label="inbox threads" />
-        <Stat icon={MailOpen} value={stats ? num(stats.inbox.unread) : "—"} label="unread in inbox" />
+        <Stat icon={Inbox} value={stats ? num(stats.inbox.threads) : "—"} label="in your inbox" />
+        <Stat icon={MailOpen} value={stats ? num(stats.inbox.unread) : "—"} label="unread" />
         <Stat icon={Trash2} value={stats ? num(stats.system.TRASH?.threads ?? 0) : "—"} label="in trash" hint="30-day recovery" />
-        <Stat icon={Coins} value={spend} label="spent on judgments" hint={`${judged} judged, each once`} />
+        <Stat icon={Coins} value={spend} label="spent on Jev" hint={`${judged} judged`} />
       </div>
 
-      <section className="card space-y-4">
-        <CardTitle icon={Sparkles}>Ask your mailbox</CardTitle>
+      <section className="space-y-5">
+        <SectionTitle icon={Sparkles} tone="blue" sub="Plain words in. A Gmail query and ranked conversations out.">Ask</SectionTitle>
         <SearchBox />
       </section>
 
-      {firstTime ? <Empty icon={Eye}><strong className="text-ink">Preview</strong> changes nothing. <strong className="text-ink">Apply</strong> does the work and writes an undoable receipt.</Empty> : null}
+      {firstTime ? <Empty icon={Eye}>Preview first. Apply when it reads right. Undo anytime.</Empty> : null}
 
       <RunControls disabled={needsReauth} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="card space-y-5 lg:col-span-2">
-          <CardTitle icon={Inbox} action={<RefreshStats label={stats ? "Refresh" : "Count my mailbox"} />}>Mailbox map</CardTitle>
+          <CardTitle icon={Inbox} action={<RefreshStats label={stats ? "Refresh" : "Count my mailbox"} />}>Map</CardTitle>
           {stats ? (
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-5">
@@ -122,8 +122,8 @@ export default async function Dashboard() {
               </div>
               <div><p className={label}>Largest labels · unread</p><LabelBars labels={stats.labels} /></div>
             </div>
-          ) : <p className="m-0 text-sm text-muted">No numbers yet. Counting takes about ten seconds and runs automatically after every daily run.</p>}
-          {stats ? <p className="m-0 text-[12px] text-muted">Counted {when(stats.takenAt)} · {num(stats.profile.messagesTotal)} messages in the account</p> : null}
+          ) : <p className="m-0 text-sm text-muted">No numbers yet. Counting takes ten seconds.</p>}
+          {stats ? <p className="m-0 text-[12px] text-muted">Counted {when(stats.takenAt)} · {num(stats.profile.messagesTotal)} messages in all</p> : null}
         </section>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
           <Link href="/app/trash" className="card block space-y-3 no-underline transition hover:border-ink">
@@ -131,44 +131,43 @@ export default async function Dashboard() {
             {senders.length ? (
               <>
                 <p className="display m-0 text-[34px] leading-none">{num(reclaimable)}</p>
-                <p className="m-0 text-[13.5px] text-muted">messages from {trashCandidates.length} senders Jev calls disposable and you rarely open.</p>
+                <p className="m-0 text-[13.5px] text-muted">messages from {trashCandidates.length} senders you never open</p>
               </>
-            ) : <p className="m-0 text-[13.5px] text-muted">Scan your senders to find out what is safe to throw away.</p>}
+            ) : <p className="m-0 text-[13.5px] text-muted">Scan senders to see what is safe to throw away.</p>}
           </Link>
           <Link href="/app/senders" className="card block space-y-3 no-underline transition hover:border-ink">
             <CardTitle icon={Users} action={<ArrowRight size={16} className="text-muted" aria-hidden="true" />}>Senders</CardTitle>
             {senders.length ? (
               <>
                 <p className="display m-0 text-[34px] leading-none">{num(senders.length)}</p>
-                <p className="m-0 text-[13.5px] text-muted">senders in the last 90 days, {decided} with standing decisions.</p>
+                <p className="m-0 text-[13.5px] text-muted">senders in 90 days · {decided} decided</p>
               </>
-            ) : <p className="m-0 text-[13.5px] text-muted">Volume, read rate, and a standing decision for every sender.</p>}
+            ) : <p className="m-0 text-[13.5px] text-muted">Volume, read rate, one decision each.</p>}
           </Link>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="space-y-4 lg:col-span-2">
-          <CardTitle icon={Flag} action={<Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} aria-hidden="true" /> Find more</Link>}>
-            What&apos;s needed
-            {needed.length ? <span className="ml-2 text-[12.5px] font-normal text-muted">{unseen} you haven&apos;t opened · {needed.length - unseen} seen, not answered</span> : null}
-          </CardTitle>
+          <SectionTitle icon={Flag} tone="red" sub={needed.length ? `${unseen} you haven't opened · ${needed.length - unseen} seen, not answered` : "Threads still waiting on you"} action={<Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} aria-hidden="true" /> Find more</Link>}>
+            Needed
+          </SectionTitle>
           {needed.length ? (
             <ul className="card m-0 list-none divide-y divide-line p-0">
               {needed.map((j) => (
                 <li key={j.messageId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm">
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="tile tile--sm" aria-hidden="true"><Flag size={14} /></span>
+                    <SenderMark from={j.from ?? ""} />
                     <div className="min-w-0">
                       <p className="m-0 flex items-center gap-2 truncate font-bold">
                         <span className="truncate">{j.subject ?? "(no subject)"}</span>
-                        {live.get(j.messageId)?.unread ? <span className="chip chip--accent shrink-0" style={{ padding: "0 6px" }}>unread</span> : live.has(j.messageId) ? <span className="chip shrink-0" style={{ padding: "0 6px" }}>read</span> : null}
+                        {live.get(j.messageId)?.unread ? <TonedChip tone="blue" className="shrink-0 py-0">unread</TonedChip> : live.has(j.messageId) ? <span className="chip shrink-0 py-0">read</span> : null}
                       </p>
                       <p className="m-0 truncate text-xs text-muted">{j.from}{j.judgment.threadMessages && j.judgment.threadMessages > 1 ? ` · ${j.judgment.threadMessages} messages` : ""}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <Meter value={j.judgment.needsAction} label="action" strong />
-                        <Meter value={j.judgment.timeSensitive} label="time-sensitive" />
-                        <Meter value={j.judgment.categoryConfidence} label={LABEL_BY_CATEGORY[j.judgment.category as CategoryId] ?? j.judgment.category} />
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <TonedMeter value={j.judgment.needsAction} label="action" tone="red" strong />
+                        <TonedMeter value={j.judgment.timeSensitive} label="time-sensitive" tone="amber" />
+                        <CategoryChip id={j.judgment.category} label={LABEL_BY_CATEGORY[j.judgment.category as CategoryId] ?? j.judgment.category} />
                       </div>
                     </div>
                   </div>
@@ -176,27 +175,27 @@ export default async function Dashboard() {
                 </li>
               ))}
             </ul>
-          ) : <Empty icon={Flag}>Nothing is waiting on you from the last two weeks. Flags come from the triage step of each run, and threads you answer since drop off here.</Empty>}
+          ) : <Empty icon={Flag}>Nothing is waiting on you.</Empty>}
         </section>
         <section className="card space-y-4 self-start">
-          <CardTitle icon={Sparkles}>Jev, last two weeks</CardTitle>
+          <CardTitle icon={Sparkles}>Jev, two weeks</CardTitle>
           {recent.length ? (
             <>
-              <p className="m-0 text-[13.5px] text-muted"><b className="text-ink">{num(recent.length)}</b> messages judged · <b className="text-ink">{num(needed.length)}</b> still need you</p>
-              <Bars rows={categoryRows} />
+              <p className="m-0 text-[13.5px] text-muted"><b className="text-ink">{num(recent.length)}</b> judged · <b className="text-ink">{num(needed.length)}</b> still need you</p>
+              <Bars rows={categoryRows} tones={categoryRows.map((r) => CATEGORY_TONE[[...byCategory.entries()].find(([id]) => (LABEL_BY_CATEGORY[id as CategoryId] ?? id) === r.label)?.[0] ?? "other"] ?? "ink")} />
               <div className="grid gap-1.5 border-t border-line pt-3">
-                <Meter value={avg("categoryConfidence")} label="avg category confidence" width={70} />
-                <Meter value={avg("automated")} label="avg automated" width={70} />
-                <Meter value={avg("needsAction")} label="avg needs action" width={70} />
-                <Meter value={avg("disposable")} label="avg disposable" width={70} />
+                <TonedMeter value={avg("categoryConfidence")} label="category confidence" tone="blue" width={70} />
+                <TonedMeter value={avg("automated")} label="automated" tone="ink" width={70} />
+                <TonedMeter value={avg("needsAction")} label="needs action" tone="red" width={70} />
+                <TonedMeter value={avg("disposable")} label="disposable" tone="amber" width={70} />
               </div>
             </>
-          ) : <p className="m-0 text-[13.5px] text-muted">No judgments yet. Preview or apply a run and every Primary message gets five typed answers.</p>}
+          ) : <p className="m-0 text-[13.5px] text-muted">No judgments yet. Run a preview.</p>}
         </section>
       </div>
 
-      <section className="space-y-4">
-        <CardTitle icon={History}>Runs</CardTitle>
+      <section className="space-y-5">
+        <SectionTitle icon={History} sub="Every run has a receipt. Apply runs can be undone.">Runs</SectionTitle>
         {runs.length ? (
           <div className="card overflow-x-auto p-0">
             <table className="table">
@@ -219,15 +218,15 @@ export default async function Dashboard() {
               </tbody>
             </table>
           </div>
-        ) : <Empty icon={History}>No runs yet. Start with a preview.</Empty>}
+        ) : <Empty icon={History}>No runs yet.</Empty>}
       </section>
 
       <section className="card flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-start gap-4">
           <span className="tile tile--sm" aria-hidden="true"><LogOut size={16} /></span>
           <div>
-            <h2 className="m-0 text-[15px] font-bold tracking-normal">Leave Mailroom</h2>
-            <p className="m-0 mt-1 text-[13.5px] text-muted">Revokes the Google token and deletes your account, runs, senders, and judgments. Labels already in Gmail stay.</p>
+            <h2 className="m-0 text-[15px] font-bold tracking-normal">Leave</h2>
+            <p className="m-0 mt-1 text-[13.5px] text-muted">Revokes the token and deletes your data. Gmail keeps its labels.</p>
           </div>
         </div>
         <DisconnectButton />

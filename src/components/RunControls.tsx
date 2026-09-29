@@ -34,7 +34,7 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
           <span className="tile" aria-hidden="true"><ListChecks size={20} strokeWidth={2.2} /></span>
           <div>
             <h2 className="m-0 text-[15px] font-bold tracking-normal">Run the policy</h2>
-            <p className="m-0 mt-0.5 text-[13.5px] text-muted">Preview changes nothing. Apply writes an undoable receipt.</p>
+            <p className="m-0 mt-0.5 text-[13.5px] text-muted">Preview changes nothing. Undo covers everything.</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -47,7 +47,7 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
             icon={busy === "apply" ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}
             label="Apply now"
             confirmLabel="Apply"
-            message="Every change is recorded and can be undone from the run list."
+            message="Every change gets a receipt and an undo."
             onConfirm={() => run("apply")}
             disabled={disabled || busy !== null}
             busy={busy === "apply"}
@@ -55,7 +55,7 @@ export function RunControls({ disabled }: { disabled?: boolean }) {
           />
         </div>
       </div>
-      {busy ? <p className="m-0 text-sm text-muted">Talking to Gmail{busy === "apply" ? " and TypeSafe" : ""}. Large mailboxes take a minute or two.</p> : null}
+      {busy ? <p className="m-0 text-sm text-muted">Working through Gmail{busy === "apply" ? " and Jev" : ""}. A big mailbox takes a minute.</p> : null}
       {result && "error" in result ? (
         <p className="m-0 rounded-md border border-ink p-3 text-sm">
           {result.needsReauth ? "Gmail access expired or was revoked. Reconnect from the banner above." : result.error}

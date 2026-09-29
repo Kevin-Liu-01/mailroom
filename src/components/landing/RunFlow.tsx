@@ -1,6 +1,6 @@
 import { Fragment, type ComponentType } from "react";
 import { Funnel, ScrollText, Stamp as StampIcon, Undo2, type LucideIcon } from "lucide-react";
-import { COS, SIN, Envelope, Hex, IsoBox, Patterns, Port, Stamp, Wire, ink, iso, path, plane, svgText } from "./iso";
+import { COS, SIN, Envelope, IsoBox, Patterns, Port, Stamp, Wire, ink, iso, path, plane, svgText } from "./iso";
 import { BRANDS, type BrandId } from "./Brand";
 
 /*
@@ -104,8 +104,6 @@ function JudgeTile() {
         <Port at={iso(20, -4, 14)} s={4} />
       </g>
       <Wire d={OUT} />
-      <Hex at={[70, 24]} s={7} />
-      <Hex at={[81, 32]} s={7} filled />
       <g>
         <rect x={84} y={8} width={82} height={134} rx={3} style={{ fill: "var(--panel)", stroke: ink(45) }} strokeWidth={1} />
         <text x={x0} y={20} style={{ ...svgText, fontSize: 6.5, letterSpacing: 1.4 }}>Judgment</text>

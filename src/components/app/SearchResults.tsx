@@ -1,6 +1,6 @@
 "use client";
 import { ConfirmButton } from "@/components/Confirm";
-import { Bars, Meter } from "@/components/app/Bits";
+import { Bars, SIGNAL_TONE, SenderMark, TonedChip, TonedMeter } from "@/components/app/Bits";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, ArrowDownUp, Bookmark, Check, ChevronDown, ExternalLink, Inbox, MailOpen, Sparkles, Star, Tag, Trash2, Undo2 } from "lucide-react";
@@ -50,13 +50,13 @@ function Reading({ c }: { c: CompiledQuery }) {
         </div>
         <div className="space-y-1.5">
           <div className="font-bold">Intent</div>
-          <Meter value={j.intents.reply} label="wants what I owe" width={60} />
+          <TonedMeter value={j.intents.reply} label="wants what I owe" tone="red" width={60} />
           <br />
-          <Meter value={j.intents.waiting} label="wants what they owe" width={60} />
+          <TonedMeter value={j.intents.waiting} label="wants what they owe" tone="amber" width={60} />
           <br />
-          <Meter value={j.intents.people} label="humans only" width={60} />
+          <TonedMeter value={j.intents.people} label="humans only" tone="green" width={60} />
           <br />
-          <Meter value={j.intents.count} label="wants a count" width={60} />
+          <TonedMeter value={j.intents.count} label="wants a count" tone="blue" width={60} />
         </div>
         <div className="text-muted">
           <div className="font-bold text-ink">Then code</div>
@@ -259,14 +259,14 @@ export function SearchResults({ q }: { q: string }) {
               const sig = r.signals ?? {};
               const order = primary ? [primary, ...SIGNAL_ORDER.filter((k) => k !== primary)] : SIGNAL_ORDER;
               return (
-                <li key={r.threadId} className={`grid grid-cols-[28px_20px_minmax(0,1fr)_auto] gap-x-3 px-4 py-3 ${selected.has(r.threadId) ? "bg-surface" : ""}`}>
-                  <span className="pt-0.5 text-right text-[12px] text-muted">{i + 1}</span>
-                  <input type="checkbox" className="mt-1" checked={selected.has(r.threadId)} onChange={() => toggle(r.threadId)} />
+                <li key={r.threadId} className={`grid grid-cols-[20px_34px_minmax(0,1fr)_auto] gap-x-3 px-4 py-3.5 ${selected.has(r.threadId) ? "bg-surface" : ""}`}>
+                  <input type="checkbox" className="mt-2" checked={selected.has(r.threadId)} onChange={() => toggle(r.threadId)} aria-label={`select ${i + 1}`} />
+                  <SenderMark from={r.from} />
                   <div className="min-w-0">
                     <div className="flex min-w-0 items-baseline gap-2">
                       <span className={`truncate text-[14px] ${r.unread ? "font-bold" : "font-medium"}`}>{s.name}</span>
                       <span className="truncate text-[12px] text-muted">{s.domain}</span>
-                      {r.latestUnread ? <span className="chip chip--accent" style={{ padding: "0 6px" }}>{r.unread > 1 ? `${r.unread} unread` : "unread"}</span> : <span className="chip" style={{ padding: "0 6px" }}>read</span>}
+                      {r.latestUnread ? <TonedChip tone="blue" className="py-0">{r.unread > 1 ? `${r.unread} unread` : "unread"}</TonedChip> : <span className="chip py-0">read</span>}
                     </div>
                     <div className={`truncate text-[14.5px] ${r.unread ? "font-bold" : ""}`}>{r.subject}</div>
                     <div className="truncate text-[13px] text-muted">{r.snippet}</div>
@@ -276,7 +276,7 @@ export function SearchResults({ q }: { q: string }) {
                       {r.participants.length > 1 ? ` · ${r.participants.slice(0, 3).join(", ")}` : ""}
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                      {order.map((k) => (sig[k] !== undefined ? <Meter key={k} value={sig[k]!} label={SIGNAL_LABEL[k]} strong={k === primary} /> : null))}
+                      {order.map((k) => (sig[k] !== undefined ? <TonedMeter key={k} value={sig[k]!} label={SIGNAL_LABEL[k]} tone={SIGNAL_TONE[k] ?? "ink"} strong={k === primary} /> : null))}
                       {r.labels.slice(0, 4).map((l) => <span key={l} className="chip">{l}</span>)}
                       {r.starred ? <span className="chip">starred</span> : null}
                       {!r.inInbox ? <span className="chip">archived</span> : null}

@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { Brand, BRANDS, Person, type BrandId } from "@/components/landing/Brand";
 
 /** A card's title row: icon tile, name, and an optional action on the right. */
 export function CardTitle({ icon: Icon, children, action }: { icon: LucideIcon; children: ReactNode; action?: ReactNode }) {
@@ -73,17 +74,93 @@ export function Meter({ value, label, strong = false, width = 44 }: { value: num
 }
 
 /** A horizontal distribution: labeled rows with bars that share one scale. */
-export function Bars({ rows, max }: { rows: { label: string; value: number; hint?: string }[]; max?: number }) {
+export function Bars({ rows, max, tones }: { rows: { label: string; value: number; hint?: string }[]; max?: number; tones?: Tone[] }) {
   const top = max ?? Math.max(1, ...rows.map((r) => r.value));
   return (
     <ul className="m-0 list-none space-y-1.5 p-0">
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <li key={r.label} className="grid grid-cols-[minmax(0,140px)_1fr_auto] items-center gap-2 text-[12.5px]">
           <span className="truncate" title={r.label}>{r.label}</span>
-          <span className="meter" style={{ height: 8 }}><i style={{ width: `${Math.max(2, (r.value / top) * 100)}%` }} /></span>
+          <span className="meter" style={{ height: 8, "--tone": toneVar(tones?.[i] ?? "ink") } as CSSProperties}><i style={{ width: `${Math.max(2, (r.value / top) * 100)}%` }} /></span>
           <span className="tabular-nums text-muted">{r.hint ?? r.value}</span>
         </li>
       ))}
     </ul>
+  );
+}
+
+/* ---- Color, used sparingly ------------------------------------------------------------------ */
+export type Tone = "ink" | "blue" | "green" | "amber" | "red" | "purple";
+export const toneVar = (t: Tone): string => (t === "ink" ? "var(--ink)" : `var(--c-${t})`);
+/** What each Jev signal means for the reader: red asks for action, amber for a decision, green and blue inform. */
+export const SIGNAL_TONE: Record<string, Tone> = { needsReply: "red", urgency: "red", waiting: "amber", disposable: "amber", relevance: "blue", human: "green" };
+export const CATEGORY_TONE: Record<string, Tone> = {
+  work: "blue", personal: "green", finance: "purple", receipts: "amber", travel: "blue", events: "purple", recruiting: "blue", school: "amber",
+  dev: "ink", social: "red", newsletters: "amber", marketing: "red", security: "green", other: "ink",
+};
+
+/** A probability as a labeled bar with its percentage, colored by what it means. */
+export function TonedMeter({ value, label, tone = "ink", strong = false, width = 44 }: { value: number; label: string; tone?: Tone; strong?: boolean; width?: number }) {
+  const p = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  return (
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[11.5px] ${strong ? "text-ink" : "text-muted"}`} title={`${label}: ${p}%`} style={{ "--tone": toneVar(tone) } as CSSProperties}>
+      <span className={strong ? "font-bold" : ""}>{label}</span>
+      <span className="meter" style={{ width, height: strong ? 7 : 5 }}><i style={{ width: `${p}%` }} /></span>
+      <span className={`tabular-nums ${strong ? "font-bold" : ""}`}>{p}%</span>
+    </span>
+  );
+}
+
+/** A small colored chip. */
+export function TonedChip({ tone, children, className = "" }: { tone: Tone; children: ReactNode; className?: string }) {
+  return <span className={`chip chip--tone ${className}`} style={{ "--tone": toneVar(tone) } as CSSProperties}>{children}</span>;
+}
+
+/** A category name in its color. */
+export function CategoryChip({ id, label }: { id: string; label?: string }) {
+  return <TonedChip tone={CATEGORY_TONE[id] ?? "ink"}>{label ?? id}</TonedChip>;
+}
+
+/** A section opening in the landing page's voice: a colored icon tile and a short display heading. */
+export function SectionTitle({ icon: Icon, tone = "ink", children, action, sub }: { icon: LucideIcon; tone?: Tone; children: ReactNode; action?: ReactNode; sub?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <span className={`tile ${tone === "ink" ? "" : "tile--tone"}`} style={{ "--tone": toneVar(tone) } as CSSProperties} aria-hidden="true"><Icon size={20} strokeWidth={2.2} /></span>
+        <div>
+          <h2 className="m-0 text-[clamp(22px,2.4vw,28px)] font-bold leading-none tracking-[-0.02em]">{children}</h2>
+          {sub ? <div className="mt-1 text-[13px] text-muted">{sub}</div> : null}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/* ---- Senders --------------------------------------------------------------------------------- */
+const DOMAIN_ALIASES: Record<string, BrandId> = {
+  bankofamerica: "bofa", americanexpress: "amex", "1password": "onepassword", atlassian: "jira", instructure: "canvas", "lu": "luma", wellsfargo: "wellsfargo", nytimes: "nytimes", ubereats: "ubereats",
+};
+/** The brand mark for a sender domain when we have one. */
+export function brandForDomain(domain: string): BrandId | null {
+  const labels = domain.toLowerCase().split(".").filter((l) => l && !["com", "org", "net", "io", "co", "app", "ai", "dev", "so", "me", "us", "uk", "ca", "edu", "gov", "email", "mail", "news", "info", "em", "e", "notifications", "noreply", "no-reply", "hello", "support", "team", "reply"].includes(l));
+  for (const l of labels) {
+    if (l in DOMAIN_ALIASES) return DOMAIN_ALIASES[l];
+    if (l in BRANDS) return l as BrandId;
+  }
+  return null;
+}
+
+/** A sender's mark: the brand in color when known, otherwise initials in a ring. */
+export function SenderMark({ from, size = 18 }: { from: string; size?: number }) {
+  const email = from.match(/<([^>]+)>/)?.[1] ?? from.trim();
+  const domain = email.split("@")[1] ?? "";
+  const name = from.replace(/<[^>]+>/, "").replace(/["']/g, "").trim() || email.split("@")[0];
+  const brand = domain ? brandForDomain(domain) : null;
+  const initials = name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
+  return (
+    <span className="tile tile--sm shrink-0" aria-hidden="true">
+      {brand ? <Brand id={brand} size={size} /> : <Person initials={initials} size={size + 4} />}
+    </span>
   );
 }

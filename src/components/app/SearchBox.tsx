@@ -58,7 +58,7 @@ export function SearchBox({ initial = "", autoFocus = false, compact = false }: 
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); go(q); }}>
         <label className="relative flex-1">
           <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input className="input pl-11" style={{ minHeight: compact ? 42 : 52, fontSize: compact ? 14 : 15.5 }} placeholder="ask your mailbox: receipts from uber last month · unread mail from real people · who hasn't replied to me" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} />
+          <input className="input pl-11" style={{ minHeight: compact ? 42 : 52, fontSize: compact ? 14 : 15.5 }} placeholder="receipts from uber last month · who hasn't replied to me · unread from real people" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} />
         </label>
         <button className="btn-primary" type="submit" style={{ minHeight: compact ? 42 : 52 }}><Sparkles size={16} /> Search</button>
       </form>

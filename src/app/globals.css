@@ -19,6 +19,12 @@
   --danger-soft: #ebebeb;
   --section-space: clamp(72px, 9vw, 136px);
   --gutter: clamp(24px, 5vw, 72px);
+  /* Semantic color, used sparingly: signals, pills, category chips. Brand marks keep their own colors. */
+  --c-blue: #2563eb;
+  --c-green: #15803d;
+  --c-amber: #b45309;
+  --c-red: #dc2626;
+  --c-purple: #6d28d9;
   --brand-lift: 0%;   /* how far near-black brand marks move toward the ink (white) in dark mode */
   --brand-sink: 38%;  /* how far near-white brand marks move toward the ink (black) in light mode */
   color-scheme: light;
@@ -42,6 +48,11 @@
   --danger-soft: #1e1e1e;
   --brand-lift: 82%;
   --brand-sink: 0%;
+  --c-blue: #60a5fa;
+  --c-green: #4ade80;
+  --c-amber: #fbbf24;
+  --c-red: #f87171;
+  --c-purple: #a78bfa;
 }
 
 @theme inline {
@@ -141,7 +152,9 @@
   .table td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .table tr:last-child td { border-bottom: 0; }
   .meter { position: relative; height: 6px; border: 1px solid var(--line); border-radius: 0; background: var(--page); overflow: hidden; }
-  .meter > i { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+  .meter > i { position: absolute; inset: 0 auto 0 0; background: var(--tone, var(--ink)); }
+  .chip--tone { color: var(--tone); border-color: color-mix(in srgb, var(--tone) 55%, transparent); background: color-mix(in srgb, var(--tone) 10%, var(--panel)); }
+  .tile--tone { color: var(--tone); border-color: color-mix(in srgb, var(--tone) 40%, transparent); background: color-mix(in srgb, var(--tone) 12%, var(--surface)); }
   .meter--warn > i, .meter--danger > i { background: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 4px); }
   .leaders { display: flex; align-items: baseline; gap: 8px; }
   .leaders::after { content: ""; flex: 1; border-bottom: 1px dotted var(--line); order: 1; transform: translateY(-4px); }
