@@ -47,7 +47,7 @@ export function SearchDiagram() {
       <Down label="Run, then rerank with Jev" />
       <div className="border-t border-line bg-panel">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 pb-3 pt-4 sm:px-5">
-          <span className="display text-[clamp(24px,3vw,32px)] leading-none">{RESULTS.length} results <span className="text-muted">· {unread} unread</span></span>
+          <span className="num text-[clamp(24px,3vw,32px)] leading-none">{RESULTS.length} results <span className="text-muted">· {unread} unread</span></span>
           <span className="text-[12px] text-muted">Relevance from Jev</span>
         </div>
         <ul className="m-0 list-none p-0">

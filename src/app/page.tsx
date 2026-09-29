@@ -10,7 +10,7 @@ import { SearchDiagram } from "@/components/landing/SearchDiagram";
 import { TrashDiagram } from "@/components/landing/TrashDiagram";
 import { JudgmentCard } from "@/components/landing/JudgmentCard";
 import { ClosingBand } from "@/components/landing/ClosingBand";
-import { FitLine, IconCard, Seam, SectionHead } from "@/components/landing/Section";
+import { FitLine, IconCard, Seam, SectionHead, emWidth } from "@/components/landing/Section";
 import { LabelGrid } from "@/components/landing/LabelGrid";
 import { defaultPolicy } from "@/lib/policy/schema";
 import { ESTIMATED_TOKENS_PER_MESSAGE, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
@@ -27,6 +27,8 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
   const cta = session?.user
     ? <Link href="/app" className="btn-primary text-[15px]"><GmailMark size={16} /> Open your dashboard <ArrowRight size={16} aria-hidden="true" /></Link>
     : <SignInButton label="Connect Gmail" className="btn-primary text-[15px]" />;
+  // "Your " and " sorted." in Camber, the Gmail M (0.88em plus its margins), and "Gmail," in Google Sans Flex.
+  const heroEm = emWidth("Your ", "camber", -0.03) + 1.08 + 3.0 + emWidth(" sorted.", "camber", -0.03);
   const costs: { icon: LucideIcon; n: string; t: string }[] = [
     { icon: BadgeDollarSign, n: "$0", t: "for every rule, every day" },
     { icon: Coins, n: `$${perThousand.toFixed(2)}`, t: "per 1,000 emails judged" },
@@ -38,7 +40,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       <section id="hero" className="section relative">
         <div className="dither" aria-hidden="true" />
         <div className="relative">
-          <FitLine as="h1" em={11.9} min={22} max={112} className="rise font-bold tracking-[-0.03em]">
+          <FitLine as="h1" em={heroEm} min={22} max={112} className="rise font-bold tracking-[-0.03em]">
             Your <GmailMark className="ml-[.04em] mr-[.16em] inline-block h-[.88em] w-[.88em] align-[-.1em]" /><span className="gmail-word">Gmail,</span> sorted.
           </FitLine>
         </div>
@@ -107,7 +109,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
           {costs.map(({ icon: Icon, n, t }) => (
             <li key={t} className="card py-8">
               <span className="tile tile--sm" aria-hidden="true"><Icon size={18} strokeWidth={2.2} /></span>
-              <div className="display mt-5 text-[clamp(44px,5.5vw,72px)] leading-none">{n}</div>
+              <div className="num mt-5 text-[clamp(44px,5.5vw,72px)] leading-none">{n}</div>
               <div className="mt-3 text-[16px] text-muted">{t}</div>
             </li>
           ))}

@@ -153,7 +153,7 @@ export function SearchResults({ q }: { q: string }) {
         <div className="card space-y-5">
           <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
             <div>
-              <div className="display text-[clamp(40px,5vw,64px)] leading-none">{countMode ? `${num(data.total)}${n?.capped ? "+" : ""}` : num(shownThreads)}</div>
+              <div className="num text-[clamp(40px,5vw,64px)] leading-none">{countMode ? `${num(data.total)}${n?.capped ? "+" : ""}` : num(shownThreads)}</div>
               <div className="mt-1 text-[13px] text-muted">
                 {countMode ? "messages match" : `conversations · ${num(data.total)}${n?.capped ? "+" : ""} messages match`}
                 {data.readState && !countMode ? ` · ${num(data.readState.unseen)} you haven't opened, ${num(data.readState.seen)} you have` : n && countMode ? ` · ${num(n.unread)} unread of ${num(n.sampled)} read` : ""}

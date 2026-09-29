@@ -16,6 +16,6 @@ export function BrandMark({ size = 28, className }: { size?: number; className?:
 
 export function Wordmark({ withCursor = true }: { withCursor?: boolean }) {
   return (
-    <span className={`text-[17px] font-bold tracking-[.02em] ${withCursor ? "cursor" : ""}`}>mailroom</span>
+    <span className={`font-mono text-[17px] font-bold tracking-[.02em] ${withCursor ? "cursor" : ""}`}>mailroom</span>
   );
 }

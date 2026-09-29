@@ -81,6 +81,7 @@ export default async function Dashboard() {
       <PageHead
         icon={<GmailMark size={30} />}
         title={mailbox.email}
+        mono
         actions={<><Link href="/app/policy" className="btn"><SlidersHorizontal size={15} aria-hidden="true" /> Policy</Link><Link href="/app/search" className="btn"><Search size={15} aria-hidden="true" /> Search</Link></>}
       >
         <Meta icon={PlugZap}>{needsReauth ? "Needs reconnect" : mailbox.status === "active" ? "Connected" : mailbox.status.replace(/^./, (c) => c.toUpperCase())}</Meta>
@@ -130,7 +131,7 @@ export default async function Dashboard() {
             <CardTitle icon={Trash2} action={<ArrowRight size={16} className="text-muted" aria-hidden="true" />}>What to trash</CardTitle>
             {senders.length ? (
               <>
-                <p className="display m-0 text-[34px] leading-none">{num(reclaimable)}</p>
+                <p className="num m-0 text-[34px] leading-none">{num(reclaimable)}</p>
                 <p className="m-0 text-[13.5px] text-muted">messages from {trashCandidates.length} senders you never open</p>
               </>
             ) : <p className="m-0 text-[13.5px] text-muted">Scan senders to see what is safe to throw away.</p>}
@@ -139,7 +140,7 @@ export default async function Dashboard() {
             <CardTitle icon={Users} action={<ArrowRight size={16} className="text-muted" aria-hidden="true" />}>Senders</CardTitle>
             {senders.length ? (
               <>
-                <p className="display m-0 text-[34px] leading-none">{num(senders.length)}</p>
+                <p className="num m-0 text-[34px] leading-none">{num(senders.length)}</p>
                 <p className="m-0 text-[13.5px] text-muted">senders in 90 days · {decided} decided</p>
               </>
             ) : <p className="m-0 text-[13.5px] text-muted">Volume, read rate, one decision each.</p>}

@@ -10,13 +10,25 @@ import { SignInButton } from "@/components/SignInButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
-// Berkeley Mono is the only typeface on the site. Licensed copy, self-hosted.
+// Two voices. Berkeley Mono (licensed, self-hosted) for everything that is data or chrome: queries, numbers, chips,
+// buttons, tables, labels. Camber (Emtype Foundry; trial cut, letters and digits only) for headings and prose.
 const berkeley = localFont({
   src: [
     { path: "./fonts/BerkeleyMono-Regular.woff2", weight: "400", style: "normal" },
     { path: "./fonts/BerkeleyMono-Bold.woff2", weight: "700", style: "normal" },
   ],
   variable: "--font-berkeley",
+  display: "swap",
+});
+const camber = localFont({
+  src: [
+    { path: "./fonts/Camber-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Camber-Italic.woff2", weight: "400", style: "italic" },
+    { path: "./fonts/Camber-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Camber-SemiBold.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/Camber-Bold.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-camber",
   display: "swap",
 });
 // Google Sans Flex, Google's own typeface, open-licensed and self-hosted. It sets exactly one word on the site: the "Gmail" in the hero.
@@ -45,14 +57,14 @@ const claim = "inline-flex items-center gap-1.5 whitespace-nowrap";
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   return (
-    <html lang="en" className={`${berkeley.variable} ${googleSans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${berkeley.variable} ${camber.variable} ${googleSans.variable}`} suppressHydrationWarning>
       <body className="min-h-screen antialiased">
         <Script id="mailroom-theme-init" strategy="beforeInteractive">{themeInit}</Script>
         <header className="frame sticky top-0 z-50 flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b border-line bg-page px-4 py-2 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5 no-underline" aria-label="mailroom home">
             <BrandMark size={28} /> <Wordmark />
           </Link>
-          <nav className="hidden items-center gap-6 text-[12px] font-bold uppercase tracking-[.14em] text-muted md:flex">
+          <nav className="hidden items-center gap-6 font-mono text-[12px] font-bold uppercase tracking-[.14em] text-muted md:flex">
             <Link href="/#how" className="no-underline hover:text-ink">How it works</Link>
             <Link href="/#search" className="no-underline hover:text-ink">Search</Link>
             <Link href="/#trash" className="no-underline hover:text-ink">What to trash</Link>
@@ -74,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         </header>
         <main className="frame">{children}</main>
-        <footer className="frame flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line px-6 py-5 text-[12.5px] text-muted">
+        <footer className="frame font-mono flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line px-6 py-5 text-[12.5px] text-muted">
           <ul className="m-0 flex list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
             <li className={claim}><BrandMark size={16} /> mailroom</li>
             <li className={claim}><Database size={13} aria-hidden="true" /> Metadata only</li>
