@@ -16,14 +16,15 @@ const BINS: BinSpec[] = [
 ];
 
 const TOWER = 42;           // half footprint of the sorter
-const TOWER_H = 116;
+const TOWER_H = 124;
 const HALF = 38;            // half footprint of a bucket
 const BIN_H = 52;           // wall height
 const RIM = 4;              // wall thickness
 const STEP = 98;            // bucket spacing along -v (the row climbs up and to the right)
 const RACK_U = 160;         // every bucket is centred on this u
 const RACK_V0 = 52;         // nearest bucket, v
-const PORT_Z = 96;          // every wire leaves the tower at this height: one row of sockets
+const PORT_Z = 108;         // the front socket's height; the row is level on screen, so sockets further back sit a little lower
+const socketZ = (q: number) => PORT_Z - (30 - q) / 2; // keeps (TOWER + q) / 2 - z constant: a screen-horizontal row
 const DROP_Z = BIN_H + 12;  // a drop ends here, just above the pile
 const BELT_FAR = 122;       // where the belt starts
 const railU = (j: number) => 178 - 12 * j; // far buckets take the inner rails, near buckets the outer ones
@@ -35,9 +36,10 @@ function layout(): Bin[] {
     const cu = RACK_U;
     const cv = RACK_V0 - STEP * j;
     const q = 30 - 15 * j;   // socket position along the tower's right face, front to back
+    const z = socketZ(q);
     const ru = railU(j);
-    const pts: Pt[] = [iso(TOWER, q, PORT_Z), iso(ru, q, PORT_Z), iso(ru, cv, PORT_Z), iso(ru, cv, DROP_Z)];
-    const length = ru - TOWER + Math.abs(cv - q) + (PORT_Z - DROP_Z);
+    const pts: Pt[] = [iso(TOWER, q, z), iso(ru, q, z), iso(ru, cv, z), iso(ru, cv, DROP_Z)];
+    const length = ru - TOWER + Math.abs(cv - q) + (z - DROP_Z);
     return { ...bin, cu, cv, wire: path(pts), length, port: pts[0], railU: ru };
   });
 }
@@ -50,6 +52,7 @@ function bounds(bins: Bin[]): { x: number; y: number; w: number; h: number } {
     iso(RACK_U - HALF - 16, far.cv - HALF - 16), iso(RACK_U + HALF + 16, far.cv - HALF - 16), iso(RACK_U + HALF + 16, RACK_V0 + HALF + 16), iso(RACK_U - HALF - 16, RACK_V0 + HALF + 16),
     iso(-TOWER, -TOWER, TOWER_H), iso(TOWER, -TOWER, TOWER_H), iso(-TOWER, TOWER, TOWER_H),
     ...bins.map((b) => iso(b.railU, b.cv, PORT_Z + 16)),
+    iso(TOWER, 30, PORT_Z + 16),
     ...bins.map((b) => iso(RACK_U + HALF, b.cv, 0)),
   ];
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -176,7 +179,7 @@ export function HeroScene() {
       <IsoBox u0={-TOWER} v0={-TOWER} u1={TOWER} v1={TOWER} h={TOWER_H} tone="dark" shadow weight={1.5}>
         <polygon points={poly([iso(-16, TOWER, 14), iso(16, TOWER, 14), iso(16, TOWER, 0), iso(-16, TOWER, 0)])} style={{ fill: "var(--page)", stroke: ink(70) }} strokeWidth={1} />
         <path d={path([iso(-TOWER, TOWER, 66), iso(TOWER, TOWER, 66), iso(TOWER, -TOWER, 66)])} style={{ fill: "none", stroke: seam }} strokeWidth={1} />
-        <path d={path([iso(TOWER, -TOWER, PORT_Z), iso(TOWER, TOWER, PORT_Z)])} style={{ fill: "none", stroke: seam }} strokeWidth={1} />
+        <path d={path([iso(TOWER, -TOWER, socketZ(-TOWER)), iso(TOWER, TOWER, socketZ(TOWER))])} style={{ fill: "none", stroke: seam }} strokeWidth={1} />
         {[14, 22, 30].map((z) => <path key={z} d={path([iso(TOWER, 6, z), iso(TOWER, 36, z)])} style={{ fill: "none", stroke: seam }} strokeWidth={1.2} />)}
         <Stamp u={0} v={0} z={TOWER_H} />
       </IsoBox>
