@@ -1,9 +1,10 @@
 "use client";
 import { ConfirmButton } from "@/components/Confirm";
+import { Meter } from "@/components/app/Bits";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Trash2, Undo2 } from "lucide-react";
-import { pct, when } from "@/lib/format";
+import { when } from "@/lib/format";
 
 type Item = { id: string; threadId: string | null; from: string | null; subject: string | null; receivedAt: string | null; category: string; disposable: number };
 
@@ -38,7 +39,7 @@ export function DisposableList({ items }: { items: Item[] }) {
             <input type="checkbox" className="mt-1" checked={selected.has(i.id)} onChange={() => toggle(i.id)} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2"><span className="truncate font-medium">{i.subject ?? "(no subject)"}</span><span className="truncate text-[12.5px] text-muted">{i.from}</span><span className="ml-auto text-xs text-muted">{i.receivedAt ? when(i.receivedAt) : ""}</span></div>
-              <div className="mt-0.5 flex items-center gap-1.5 text-[12px]"><span className="chip">{i.category}</span><span className="chip chip--warn">disposable {pct(i.disposable)}</span>{i.threadId ? <a className="ml-auto inline-flex items-center gap-1 text-muted hover:text-accent-deep" href={`https://mail.google.com/mail/u/0/#all/${i.threadId}`} target="_blank" rel="noreferrer">open <ExternalLink size={11} /></a> : null}</div>
+              <div className="mt-0.5 flex items-center gap-1.5 text-[12px]"><span className="chip">{i.category}</span><Meter value={i.disposable} label="disposable" strong />{i.threadId ? <a className="ml-auto inline-flex items-center gap-1 text-muted hover:text-accent-deep" href={`https://mail.google.com/mail/u/0/#all/${i.threadId}`} target="_blank" rel="noreferrer">open <ExternalLink size={11} /></a> : null}</div>
             </div>
           </li>
         ))}

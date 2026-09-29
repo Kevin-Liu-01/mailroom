@@ -12,6 +12,9 @@ export type GmailMessageMeta = {
   headers: Record<string, string>;
 };
 
+export type GmailThreadMessage = { id: string; from: string; to: string; date: string; internalDate: string; labelIds: string[] };
+export type GmailThreadMeta = { id: string; messages: GmailThreadMessage[] };
+
 export class GmailAuthError extends Error {}
 export class GmailRateLimit extends Error {}
 
@@ -111,7 +114,21 @@ export class GmailClient {
     return ids.slice(0, maxIds);
   }
 
-  async getMessageMeta(id: string, headers = ["From", "Subject", "Date", "List-Unsubscribe", "Precedence", "Auto-Submitted"]): Promise<GmailMessageMeta> {
+  /** Who said what when in a thread: headers only, oldest first. Used to tell who spoke last. */
+  async getThreadMeta(threadId: string): Promise<GmailThreadMeta> {
+    const params = new URLSearchParams({ format: "metadata" });
+    for (const h of ["From", "To", "Date"]) params.append("metadataHeaders", h);
+    const t = await this.call<{ id: string; messages?: { id: string; internalDate: string; labelIds?: string[]; payload?: { headers?: { name: string; value: string }[] } }[] }>(`/threads/${threadId}?${params}`);
+    const messages = (t.messages ?? []).map((m) => {
+      const hs: Record<string, string> = {};
+      for (const h of m.payload?.headers ?? []) hs[h.name.toLowerCase()] = h.value;
+      return { id: m.id, from: hs["from"] ?? "", to: hs["to"] ?? "", date: hs["date"] ?? "", internalDate: m.internalDate, labelIds: m.labelIds ?? [] };
+    });
+    messages.sort((a, b) => Number(a.internalDate) - Number(b.internalDate));
+    return { id: t.id, messages };
+  }
+
+  async getMessageMeta(id: string, headers = ["From", "To", "Cc", "Subject", "Date", "In-Reply-To", "List-Unsubscribe", "Precedence", "Auto-Submitted"]): Promise<GmailMessageMeta> {
     const params = new URLSearchParams({ format: "metadata" });
     for (const h of headers) params.append("metadataHeaders", h);
     const m = await this.call<{ id: string; threadId: string; labelIds?: string[]; snippet?: string; internalDate: string; payload?: { headers?: { name: string; value: string }[] } }>(`/messages/${id}?${params}`);

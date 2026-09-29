@@ -59,3 +59,31 @@ export function PageHead({ icon, title, children, actions }: { icon: ReactNode; 
 export function Meta({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
   return <span className="inline-flex items-center gap-1.5"><Icon size={14} aria-hidden="true" />{children}</span>;
 }
+
+/** A probability as a labeled bar with its percentage. `strong` marks the signal the question was about. */
+export function Meter({ value, label, strong = false, width = 44 }: { value: number; label: string; strong?: boolean; width?: number }) {
+  const p = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  return (
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[11.5px] ${strong ? "text-ink" : "text-muted"}`} title={`${label}: ${p}%`}>
+      <span className={strong ? "font-bold" : ""}>{label}</span>
+      <span className="meter" style={{ width, height: strong ? 7 : 5 }}><i style={{ width: `${p}%` }} /></span>
+      <span className={`tabular-nums ${strong ? "font-bold" : ""}`}>{p}%</span>
+    </span>
+  );
+}
+
+/** A horizontal distribution: labeled rows with bars that share one scale. */
+export function Bars({ rows, max }: { rows: { label: string; value: number; hint?: string }[]; max?: number }) {
+  const top = max ?? Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <ul className="m-0 list-none space-y-1.5 p-0">
+      {rows.map((r) => (
+        <li key={r.label} className="grid grid-cols-[minmax(0,140px)_1fr_auto] items-center gap-2 text-[12.5px]">
+          <span className="truncate" title={r.label}>{r.label}</span>
+          <span className="meter" style={{ height: 8 }}><i style={{ width: `${Math.max(2, (r.value / top) * 100)}%` }} /></span>
+          <span className="tabular-nums text-muted">{r.hint ?? r.value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}

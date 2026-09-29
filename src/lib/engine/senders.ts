@@ -3,15 +3,13 @@
  * TypeSafe, and turn probabilities plus the user's own reading behavior into a recommendation.
  */
 import { and, eq, sql } from "drizzle-orm";
-import { choice, noul, TypeSafeClient } from "@typesafe-ai/sdk";
+import { choice, noul } from "@typesafe-ai/sdk";
+import { jev } from "@/lib/ai/client";
 import { db, schema } from "@/db";
 import { CATEGORIES, type CategoryId, type PolicyConfig } from "@/lib/policy/schema";
 import { mapLimit, type GmailClient } from "@/lib/gmail/client";
 import { USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
 import type { SenderDecision, SenderJudgment } from "@/db/schema";
-
-let client: TypeSafeClient | null = null;
-const ts = () => (client ??= new TypeSafeClient({ apiKey: process.env.TYPESAFE_API_KEY }));
 
 type Agg = { domain: string; names: Map<string, number>; messages: number; unread: number; inInbox: number; olderThan30: number; first: number; last: number; subjects: string[]; listUnsubscribe?: string };
 
@@ -83,7 +81,7 @@ async function judgeSender(a: Agg): Promise<SenderJudgment> {
     volume: { messages_last_90_days: a.messages, unread_ratio: Number((a.unread / a.messages).toFixed(2)), still_in_inbox: a.inInbox, first_seen: new Date(a.first).toISOString().slice(0, 10), last_seen: new Date(a.last).toISOString().slice(0, 10) },
     sample_subjects: a.subjects,
   };
-  const res = await ts().systemOne({
+  const res = await jev().systemOne({
     state,
     questions: {
       category: choice("Which mailbox category does mail from this sender belong to?", categoryCriteria),

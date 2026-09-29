@@ -1,5 +1,6 @@
 "use client";
 import { ConfirmButton } from "@/components/Confirm";
+import { Meter } from "@/components/app/Bits";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ExternalLink, RefreshCw, Shield, Trash2, Undo2, UserRound } from "lucide-react";
@@ -83,10 +84,14 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
                     <div className="text-[12px] text-muted">{pct(unreadRatio)} unread</div>
                   </td>
                   <td className="text-[12px] text-muted" style={{ minWidth: 150 }}>
-                    {r.judgment ? (<>
-                      <div>{r.judgment.category}</div>
-                      <div>disposable {pct(r.judgment.safeToTrashOld)} · human {pct(r.judgment.human)}</div>
-                    </>) : "not judged yet"}
+                    {r.judgment ? (
+                      <div className="grid gap-1">
+                        <Meter value={r.judgment.categoryConfidence} label={r.judgment.category} width={50} />
+                        <Meter value={r.judgment.safeToTrashOld} label="disposable" strong width={50} />
+                        <Meter value={r.judgment.human} label="human" width={50} />
+                        <Meter value={r.judgment.transactional} label="records" width={50} />
+                      </div>
+                    ) : "not judged yet"}
                   </td>
                   <td style={{ minWidth: 170 }}>
                     <span className={`chip ${rec.cls}`}>{r.decision ? <Check size={12} /> : null} {rec.text}</span>

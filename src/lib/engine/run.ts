@@ -6,6 +6,7 @@ import { ACTION_LABEL, AI_LABEL, LABEL_BY_CATEGORY, type CategoryId, type Policy
 import { ALL_TAXONOMY_LABELS, buildFilters, buildRules, resolveRule } from "@/lib/policy/rules";
 import { estimateCostUsd, triageMessage, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
 import { expandLabelQuery } from "@/lib/gmail/labels";
+import { summarizeThread } from "@/lib/search/threads";
 import type { AiUsage, Judgment, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
 
 const { accounts, aiJudgments, mailboxes, runBatches, runs } = schema;
@@ -142,7 +143,7 @@ function decide(j: Judgment, policy: PolicyConfig, labels: Record<string, string
   if (confident && policy.ai.archiveAutomated && j.automated >= policy.ai.archiveAutomatedThreshold && policy.ai.archiveCategories.includes(cat)) {
     remove.push("INBOX");
     actions.push("archive");
-  } else if (j.needsAction >= policy.ai.flagActionThreshold) {
+  } else if (j.needsAction >= policy.ai.flagActionThreshold && !j.repliedAfter) {
     add.push(labels[ACTION_LABEL]);
     actions.push("flag:action");
   }
@@ -181,7 +182,9 @@ async function triagePrimary(ctx: {
   const results = await mapLimit(fresh, 6, async (id) => {
     try {
       const meta = await gmail.getMessageMeta(id);
-      const judgment = await triageMessage(meta, email);
+      // Who spoke last is a fact Jev should see: a message the recipient already answered needs no flag.
+      const thread = await gmail.getThreadMeta(meta.threadId).then((t) => summarizeThread(t.messages, email)).catch(() => undefined);
+      const judgment = await triageMessage(meta, email, thread ? { total: thread.total, lastFromMe: thread.lastFromMe, repliedAfterLatest: thread.repliedAfterLatest, lastInboundAt: thread.lastInboundAt } : undefined);
       return { meta, judgment };
     } catch {
       return null;

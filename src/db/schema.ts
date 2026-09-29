@@ -136,6 +136,9 @@ export type Judgment = {
   timeSensitive: number;
   /** Probability that nothing is lost if this message is trashed after it has been seen. */
   disposable?: number;
+  /** Thread facts recorded at judgment time: the recipient had already replied after this message, and how long the thread is. */
+  repliedAfter?: boolean;
+  threadMessages?: number;
 };
 
 // TypeSafe judgments are cached per message so a message is only ever paid for once.

@@ -2,7 +2,8 @@
  * TypeSafe (System One / Jev) triage for one email. Code owns the workflow; the model answers a few
  * narrow typed questions over metadata only (sender, subject, snippet, list headers). Bodies are never sent.
  */
-import { choice, noul, TypeSafeClient } from "@typesafe-ai/sdk";
+import { choice, noul } from "@typesafe-ai/sdk";
+import { jev } from "@/lib/ai/client";
 import { CATEGORIES, type CategoryId } from "@/lib/policy/schema";
 import type { Judgment } from "@/db/schema";
 import type { GmailMessageMeta } from "@/lib/gmail/client";
@@ -10,23 +11,24 @@ import type { GmailMessageMeta } from "@/lib/gmail/client";
 // Price from https://docs.typesafe.ai/models: $0.042 per million input tokens; output tokens are free.
 export const USD_PER_INPUT_TOKEN = 0.042 / 1_000_000;
 
-let client: TypeSafeClient | null = null;
-function ts(): TypeSafeClient {
-  if (!process.env.TYPESAFE_API_KEY) throw new Error("TYPESAFE_API_KEY is not set");
-  return (client ??= new TypeSafeClient({ apiKey: process.env.TYPESAFE_API_KEY }));
-}
+/** What the thread around a message says about who spoke last. */
+export type ThreadFacts = { total: number; lastFromMe: boolean; repliedAfterLatest: boolean; lastInboundAt: string | null };
 
 const categoryCriteria = Object.fromEntries(
   CATEGORIES.map((c) => [c.id, c.description]),
 ) as Record<CategoryId, string>;
 
-export function messageState(meta: GmailMessageMeta, userEmail: string) {
+export function messageState(meta: GmailMessageMeta, userEmail: string, thread?: ThreadFacts) {
   const h = meta.headers;
   return {
     recipient: userEmail,
     from: h["from"] ?? "",
+    to: h["to"] ?? "",
+    cc: h["cc"] ?? null,
     subject: h["subject"] ?? "",
     date: h["date"] ?? "",
+    is_reply: Boolean(h["in-reply-to"]) || /^\s*re:/i.test(h["subject"] ?? ""),
+    thread: thread ? { messages: thread.total, last_message_from: thread.lastFromMe ? "recipient" : "other party", recipient_replied_after_this: thread.repliedAfterLatest } : null,
     preview: meta.snippet.slice(0, 600),
     bulk_headers: {
       has_list_unsubscribe: Boolean(h["list-unsubscribe"]),
@@ -50,8 +52,8 @@ export const QUESTIONS = {
     { true: "Bulk campaign, notification, digest, receipt, or no-reply system mail.", false: "A person wrote this message to the recipient, even if briefly." },
   ),
   needs_action: noul(
-    "Does the recipient need to do something because of this email: reply, decide, pay, sign, schedule, or respond by a deadline?",
-    { true: "A concrete action or reply is expected from the recipient.", false: "Purely informational, promotional, or already-handled; nothing is asked of the recipient." },
+    { question: "Does the recipient still need to do something because of this email: reply, decide, pay, sign, schedule, or respond by a deadline?", note: "When `thread.recipient_replied_after_this` is true the recipient has already answered; only a new ask in the preview would still need action." },
+    { true: "A concrete action or reply is still expected from the recipient.", false: "Purely informational, promotional, already handled, or already answered; nothing is asked of the recipient." },
   ),
   time_sensitive: noul(
     "Does this email lose its value if not seen within a few days?",
@@ -65,8 +67,8 @@ export const QUESTIONS = {
 
 export type TriageResult = { judgment: Judgment; model: string; inputTokens: number; outputTokens: number };
 
-export async function triageMessage(meta: GmailMessageMeta, userEmail: string): Promise<TriageResult> {
-  const res = await ts().systemOne({ state: messageState(meta, userEmail), questions: QUESTIONS });
+export async function triageMessage(meta: GmailMessageMeta, userEmail: string, thread?: ThreadFacts): Promise<TriageResult> {
+  const res = await jev().systemOne({ state: messageState(meta, userEmail, thread), questions: QUESTIONS });
   const cat = res.answers.category;
   return {
     judgment: {
@@ -77,6 +79,7 @@ export async function triageMessage(meta: GmailMessageMeta, userEmail: string): 
       needsAction: res.answers.needs_action.noul,
       timeSensitive: res.answers.time_sensitive.noul,
       disposable: res.answers.disposable.noul,
+      ...(thread ? { repliedAfter: thread.repliedAfterLatest, threadMessages: thread.total } : {}),
     },
     model: res.model,
     inputTokens: res.usage.input_tokens,

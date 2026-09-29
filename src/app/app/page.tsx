@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { AlertTriangle, ArrowRight, ArrowUpRight, CalendarClock, CheckCircle2, Clock, Coins, Eye, Flag, History, Inbox, LogOut, MailOpen, Play, PlugZap, Search, SlidersHorizontal, Sparkles, Trash2, Users, XCircle } from "lucide-react";
+import { LABEL_BY_CATEGORY, type CategoryId } from "@/lib/policy/schema";
 import { auth } from "@/auth";
 import { db, schema } from "@/db";
 import { GmailMark } from "@/components/GmailMark";
@@ -13,11 +14,11 @@ import { SignInButton } from "@/components/SignInButton";
 import { SearchBox } from "@/components/app/SearchBox";
 import { LabelBars, TabStack, VolumeBars } from "@/components/app/Charts";
 import { RefreshStats } from "@/components/app/RefreshStats";
-import { CardTitle, Empty, Meta, PageHead, Stat } from "@/components/app/Bits";
+import { Bars, CardTitle, Empty, Meta, Meter, PageHead, Stat } from "@/components/app/Bits";
 import { latestSnapshot } from "@/lib/engine/stats";
 import { senderOverview } from "@/lib/engine/senders";
 import { USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
-import { daysAgo, num, pct, usd, when } from "@/lib/format";
+import { daysAgo, num, usd, when } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,16 @@ export default async function Dashboard() {
   ]);
   const since = daysAgo(14);
   const recent = await db.select().from(schema.aiJudgments).where(and(eq(schema.aiJudgments.userId, userId), gte(schema.aiJudgments.createdAt, since))).orderBy(desc(schema.aiJudgments.receivedAt)).limit(300);
-  const attention = recent.filter((j) => j.actions.some((a) => a.endsWith("flag:action"))).slice(0, 8);
+  // One row per conversation, newest first, and nothing the user has already answered.
+  const seenThreads = new Set<string>();
+  const attention = recent
+    .filter((j) => j.actions.some((a) => a.endsWith("flag:action")) && !j.judgment.repliedAfter)
+    .filter((j) => { const key = j.threadId ?? j.messageId; if (seenThreads.has(key)) return false; seenThreads.add(key); return true; })
+    .slice(0, 8);
+  const byCategory = new Map<string, number>();
+  for (const j of recent) byCategory.set(j.judgment.category, (byCategory.get(j.judgment.category) ?? 0) + 1);
+  const categoryRows = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, count]) => ({ label: LABEL_BY_CATEGORY[id as CategoryId] ?? id, value: count }));
+  const avg = (k: "categoryConfidence" | "needsAction" | "automated" | "disposable") => (recent.length ? recent.reduce((n, j) => n + (j.judgment[k] ?? 0), 0) / recent.length : 0);
   const trashCandidates = senders.filter((s) => s.recommendation.rec.startsWith("trash") && !s.decision);
   const reclaimable = trashCandidates.reduce((n, s) => n + s.messages, 0);
   const decided = senders.filter((s) => s.decision).length;
@@ -118,27 +128,47 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      <section className="space-y-4">
-        <CardTitle icon={Flag} action={<Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} aria-hidden="true" /> Find more</Link>}>Needs your attention</CardTitle>
-        {attention.length ? (
-          <ul className="card m-0 list-none divide-y divide-line p-0">
-            {attention.map((j) => (
-              <li key={j.messageId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="tile tile--sm" aria-hidden="true"><Flag size={14} /></span>
-                  <div className="min-w-0"><p className="m-0 truncate font-bold">{j.subject ?? "(no subject)"}</p><p className="m-0 truncate text-xs text-muted">{j.from}</p></div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span className="chip">{j.judgment.category}</span>
-                  <span className="chip chip--accent">action {pct(j.judgment.needsAction)}</span>
-                  {j.judgment.timeSensitive >= 0.6 ? <span className="chip chip--warn">time-sensitive</span> : null}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section className="space-y-4 lg:col-span-2">
+          <CardTitle icon={Flag} action={<Link href="/app/search?q=mail%20from%20real%20people%20that%20still%20needs%20my%20reply" className="btn btn-sm"><Search size={13} aria-hidden="true" /> Find more</Link>}>Needs your attention</CardTitle>
+          {attention.length ? (
+            <ul className="card m-0 list-none divide-y divide-line p-0">
+              {attention.map((j) => (
+                <li key={j.messageId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="tile tile--sm" aria-hidden="true"><Flag size={14} /></span>
+                    <div className="min-w-0">
+                      <p className="m-0 truncate font-bold">{j.subject ?? "(no subject)"}</p>
+                      <p className="m-0 truncate text-xs text-muted">{j.from}{j.judgment.threadMessages && j.judgment.threadMessages > 1 ? ` · ${j.judgment.threadMessages} messages` : ""}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <Meter value={j.judgment.needsAction} label="action" strong />
+                        <Meter value={j.judgment.timeSensitive} label="time-sensitive" />
+                        <Meter value={j.judgment.categoryConfidence} label={LABEL_BY_CATEGORY[j.judgment.category as CategoryId] ?? j.judgment.category} />
+                      </div>
+                    </div>
+                  </div>
                   <a className="btn btn-sm" href={`https://mail.google.com/mail/u/0/#all/${j.threadId ?? j.messageId}`} target="_blank" rel="noreferrer">Open <ArrowUpRight size={13} aria-hidden="true" /></a>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : <Empty icon={Flag}>Nothing flagged in the last two weeks. Flags come from the triage step of each run.</Empty>}
-      </section>
+                </li>
+              ))}
+            </ul>
+          ) : <Empty icon={Flag}>Nothing flagged in the last two weeks. Flags come from the triage step of each run.</Empty>}
+        </section>
+        <section className="card space-y-4 self-start">
+          <CardTitle icon={Sparkles}>Jev, last two weeks</CardTitle>
+          {recent.length ? (
+            <>
+              <p className="m-0 text-[13.5px] text-muted"><b className="text-ink">{num(recent.length)}</b> messages judged · <b className="text-ink">{num(attention.length)}</b> still need you</p>
+              <Bars rows={categoryRows} />
+              <div className="grid gap-1.5 border-t border-line pt-3">
+                <Meter value={avg("categoryConfidence")} label="avg category confidence" width={70} />
+                <Meter value={avg("automated")} label="avg automated" width={70} />
+                <Meter value={avg("needsAction")} label="avg needs action" width={70} />
+                <Meter value={avg("disposable")} label="avg disposable" width={70} />
+              </div>
+            </>
+          ) : <p className="m-0 text-[13.5px] text-muted">No judgments yet. Preview or apply a run and every Primary message gets five typed answers.</p>}
+        </section>
+      </div>
 
       <section className="space-y-4">
         <CardTitle icon={History}>Runs</CardTitle>
