@@ -18,7 +18,7 @@ const flush = { padding: 0 };
 
 function Down({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-3 px-4 sm:px-5" aria-hidden="true">
+    <div className="flex items-center gap-3 pl-[27px] pr-4 sm:pl-[31px] sm:pr-5" aria-hidden="true">
       <svg viewBox="0 0 24 36" className="h-9 w-6 shrink-0"><Wire d="M12 0V36" /></svg>
       <span className="text-[12.5px] font-medium text-muted">{label}</span>
     </div>
@@ -28,7 +28,7 @@ function Down({ label }: { label: string }) {
 export function SearchDiagram() {
   return (
     <figure className="card card--surface m-0 overflow-hidden" style={flush} aria-label="A natural-language search compiled into a Gmail query, then run and reranked by Jev: three results, two unread">
-      <div className="p-4 sm:p-5">
+      <div className="px-4 pt-4 sm:px-5 sm:pt-5">
         <div className="flex items-center gap-3 rounded-[6px] border border-ink bg-panel px-3.5 py-3">
           <Search size={18} className="shrink-0 text-ink" aria-hidden="true" />
           <span className="cursor min-w-0 flex-1 text-[15px] font-bold leading-snug sm:text-[16px]">Receipts from Uber last month</span>

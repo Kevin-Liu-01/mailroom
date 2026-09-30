@@ -17,7 +17,7 @@ with the app name and every scope, the app's URL bar, and the scopes actually be
 Use QuickTime or `Cmd+Shift+5` on the whole screen, English UI, signed out of Mailroom first.
 
 1. **Landing.** Open https://mailroom.kevinliu.studio and pause a second on the hero.
-2. **Sign in.** Click *Connect Gmail*. On the Google account chooser pick k.bowen.liu@gmail.com.
+2. **Sign in.** Click *Connect Gmail*. On the Google account chooser pick the connected account.
    On the "Google hasn't verified this app" screen click *Advanced* → *Go to mailroom.kevinliu.studio (unsafe)*.
 3. **Consent screen.** Slow down here. Hover over each checkbox so the full scope text is readable:
    "Read, compose, and send emails" (gmail.modify) and "See, edit, create, or change your email settings and

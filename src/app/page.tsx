@@ -9,7 +9,7 @@ import { RunFlow } from "@/components/landing/RunFlow";
 import { SearchDiagram } from "@/components/landing/SearchDiagram";
 import { TrashDiagram } from "@/components/landing/TrashDiagram";
 import { JudgmentCard } from "@/components/landing/JudgmentCard";
-import { TypeSafeLockup } from "@/components/landing/TypeSafeMark";
+import { JevCard } from "@/components/landing/JevCard";
 import { ClosingBand } from "@/components/landing/ClosingBand";
 import { FitLine, IconCard, Seam, SectionHead, emWidth } from "@/components/landing/Section";
 import { LabelGrid } from "@/components/landing/LabelGrid";
@@ -100,16 +100,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       <section id="ai" className="section grid items-center gap-12 lg:grid-cols-2">
         <div className="space-y-8">
           <SectionHead icon={BrainCircuit} title="Five typed questions.">One judgment each, on metadata only. Probabilities, not prose. Judged once, cached forever.</SectionHead>
-          <div className="card space-y-4">
-            <a href="https://typesafe.ai" target="_blank" rel="noreferrer" className="inline-flex text-ink" aria-label="TypeSafe AI"><TypeSafeLockup height={22} /></a>
-            <p className="m-0 text-[15.5px] leading-snug">
-              <b>Jev</b> is TypeSafe AI&apos;s System One model. It does not write. Given a piece of state and a typed question, it answers with a probability, in one fast pass. Mailroom asks it five questions per email and reads the numbers. The rules stay in code.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <a href="https://docs.typesafe.ai/concepts/system-one" target="_blank" rel="noreferrer" className="btn btn-sm">What System One is <ArrowRight size={13} aria-hidden="true" /></a>
-              <a href="https://typesafe.ai" target="_blank" rel="noreferrer" className="btn btn-sm">typesafe.ai</a>
-            </div>
-          </div>
+          <JevCard />
         </div>
         <JudgmentCard />
       </section>
