@@ -73,3 +73,13 @@ The blur over the Filters page survives the crop (it is baked into v2's pixels).
 https://youtu.be/k2CBwddGPUI and is the link on the Data Access page; v1 (mKZpCdDcXH0) and v2 (bcbSblgWA88) are Private.
 Segment boundaries came from classifying every frame's non-white bounding box with Pillow (see the session log).
 
+## 2026-09-29 v4
+
+Every account address in the recording is blurred (the account chooser, the unverified-app line, the consent chips,
+the dashboard title), and the 1.75 s where the dashboard appeared at a different zoom was cut. v4 is unlisted at
+https://youtu.be/RnN8E_XNKOo and is the link on the Data Access page; v3 (k2CBwddGPUI) is Private like the earlier cuts.
+Blur boxes were placed from per-frame inspection; the segment times came from scene-change detection on v3.
+
+Note on deploys: Vercel blocks a deployment when the commit author's email is not a team member ("TEAM_ACCESS_REQUIRED"),
+so commits use the GitHub noreply address, which Vercel resolves through the connected GitHub account.
+
