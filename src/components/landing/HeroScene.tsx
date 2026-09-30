@@ -25,9 +25,15 @@ const STEP = 98;            // bucket spacing along -v (the row climbs up and to
 const RACK_U = 160;         // every bucket is centred on this u
 const RACK_V0 = 52;         // nearest bucket, v
 const PORT_Z = 96;          // every wire leaves the tower at this height: one straight row of sockets along the face
-const DROP_Z = BIN_H + 12;  // a drop ends here, just above the pile
+const DROP_Z = BIN_H + 12;  // where the Work wire ends: just above the pile, over the front of its opening
 const BELT_FAR = 122;       // where the belt starts
 const railU = (j: number) => 178 - 12 * j; // far buckets take the inner rails, near buckets the outer ones
+/**
+ * A drop from an inner rail hangs further back in its bucket, and the ground there sits higher on screen, so a drop that
+ * ended at Work's height would read as stopping short. Ending each one this much lower keeps every wire at the same
+ * apparent depth inside its own bucket.
+ */
+const dropZ = (ru: number) => DROP_Z + (ru - railU(0)) / 2;
 const DEPOT_ROWS = 2;       // rows of crates behind the rack
 const DEPOT_COLS = 3;       // crates per row, behind the nearest buckets
 const DEPOT_STEP = 92;      // how far back each row sits
@@ -42,8 +48,8 @@ function layout(): Bin[] {
     const cv = RACK_V0 - STEP * j;
     const q = 30 - 15 * j;   // socket position along the tower's right face, front to back
     const ru = railU(j);
-    const pts: Pt[] = [iso(TOWER, q, PORT_Z), iso(ru, q, PORT_Z), iso(ru, cv, PORT_Z), iso(ru, cv, DROP_Z)];
-    const length = ru - TOWER + Math.abs(cv - q) + (PORT_Z - DROP_Z);
+    const pts: Pt[] = [iso(TOWER, q, PORT_Z), iso(ru, q, PORT_Z), iso(ru, cv, PORT_Z), iso(ru, cv, dropZ(ru))];
+    const length = ru - TOWER + Math.abs(cv - q) + (PORT_Z - dropZ(ru));
     return { ...bin, cu, cv, wire: path(pts), length, port: pts[0], railU: ru };
   });
 }
