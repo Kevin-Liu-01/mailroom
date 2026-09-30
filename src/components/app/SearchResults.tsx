@@ -86,8 +86,14 @@ export function SearchResults({ q }: { q: string }) {
 
   async function run(body: { q?: string; gmail?: string }) {
     setLoading(true); setMsg(null); setSelected(new Set());
-    const res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, limit: 60 }) });
-    const json = (await res.json()) as Response;
+    let json: Response;
+    try {
+      const res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, limit: 60 }) });
+      json = (await res.json().catch(() => ({}))) as Response;
+      if (!res.ok && !json.error) json = { ...json, error: `Search failed (${res.status}).` };
+    } catch (err) {
+      json = { compiled: null, gmail: "", total: 0, results: [], dropped: 0, cost: { inputTokens: 0, usd: 0 }, error: err instanceof Error ? err.message : "Search failed." };
+    }
     setData(json); setRaw(json.gmail ?? ""); setLoading(false);
   }
   useEffect(() => {
@@ -142,7 +148,7 @@ export function SearchResults({ q }: { q: string }) {
   const aggregate = Boolean(data?.compiled?.intents?.aggregate);
   const dist = data?.distribution ?? null;
   const errorText = data?.error ? (data.error.includes("refresh token") || data.error.includes("access token") ? "Gmail is not connected for this account. Reconnect from the dashboard." : data.error) : null;
-  const shownThreads = data?.results.length ?? 0;
+  const shownThreads = data?.results?.length ?? 0;
 
   return (
     <div className="space-y-4">
@@ -228,7 +234,7 @@ export function SearchResults({ q }: { q: string }) {
         </div>
       ) : null}
 
-      {results.length || (data?.results.length && (onlyLikely || readFilter !== "all")) ? (
+      {results.length || (data?.results?.length && (onlyLikely || readFilter !== "all")) ? (
         <div className="card p-0">
           <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={allSelected} onChange={toggleAll} /> {selected.size ? `${selected.size} selected` : "select all"}</label>
