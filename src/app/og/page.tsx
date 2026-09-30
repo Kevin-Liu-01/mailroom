@@ -15,7 +15,7 @@ export default function OgPage() {
       <div
         id="og"
         className="relative shrink-0 overflow-hidden"
-        style={{ width: 1200, minWidth: 1200, height: 630, background: "var(--page)", color: "var(--ink)", ...DARK }}
+        style={{ width: 1200, minWidth: 1200, height: 630, background: "var(--page)", color: "var(--ink)", outline: "4px solid #ff00ff", outlineOffset: 0, ...DARK }}
       >
         <div className="dither" aria-hidden="true" />
         <h1 className="absolute left-0 right-0 m-0 text-center font-semibold leading-none" style={{ top: 64, fontSize: 96, letterSpacing: "0.01em", whiteSpace: "nowrap" }}>
