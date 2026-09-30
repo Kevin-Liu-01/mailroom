@@ -18,18 +18,27 @@ export default function OgPage() {
         style={{ width: 1200, minWidth: 1200, height: 630, background: "var(--page)", color: "var(--ink)", outline: "4px solid #ff00ff", outlineOffset: 0, ...DARK }}
       >
         <div className="dither" aria-hidden="true" />
-        <h1 className="absolute left-0 right-0 m-0 text-center font-semibold leading-none" style={{ top: 64, fontSize: 96, letterSpacing: "0.01em", whiteSpace: "nowrap" }}>
-          Your <GmailMark className="ml-[.04em] mr-[.16em] inline-block h-[.88em] w-[.88em] align-[-.1em]" /><span className="gmail-word">Gmail,</span> sorted.
+        {/* left: the name, a three-line headline, one line of lede, the address */}
+        <div className="absolute flex items-center gap-3" style={{ left: 72, top: 58 }}>
+          <BrandMark size={34} />
+          <span className="font-mono text-[22px] font-bold tracking-[.02em]">mailroom</span>
+        </div>
+        <h1 className="absolute m-0 font-semibold" style={{ left: 66, top: 126, fontSize: 108, lineHeight: 0.98, letterSpacing: "0.005em", whiteSpace: "nowrap" }}>
+          Your
+          <br />
+          <GmailMark className="mr-[.14em] inline-block h-[.84em] w-[.84em] align-[-.08em]" /><span className="gmail-word">Gmail,</span>
+          <br />
+          sorted.
         </h1>
-        <p className="absolute m-0 text-muted" style={{ left: 64, top: 290, width: 420, fontSize: 27, lineHeight: 1.3 }}>
+        <p className="absolute m-0 text-muted" style={{ left: 72, top: 474, width: 470, fontSize: 23, lineHeight: 1.3 }}>
           Rules you can read. Typed AI judgments for pennies. A straight answer to what to trash.
         </p>
-        <div className="absolute flex items-center gap-3 font-mono text-[19px]" style={{ left: 64, bottom: 52 }}>
-          <BrandMark size={30} /> mailroom.kevinliu.studio
-        </div>
-        <div className="absolute" style={{ right: 36, top: 196, width: 720 }}>
+        <div className="absolute font-mono text-[17px] text-muted" style={{ left: 72, bottom: 42 }}>mailroom.kevinliu.studio</div>
+        {/* right: the machine, with the three beats under it */}
+        <div className="absolute" style={{ left: 612, top: 150, width: 556 }}>
           <HeroScene />
         </div>
+        <div className="absolute font-mono text-[12px] font-bold uppercase tracking-[.16em] text-muted" style={{ right: 72, bottom: 46 }}>Rules · Jev · Receipt</div>
       </div>
     </div>
   );
