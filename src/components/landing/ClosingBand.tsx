@@ -1,3 +1,4 @@
+import { FitLine } from "@/components/landing/Section";
 import type { CSSProperties, ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
@@ -22,11 +23,7 @@ export function ClosingBand({ cta }: { cta: ReactNode }) {
     <div style={outer}>
       <section id="connect" className="section flex flex-col items-center text-center" style={inner}>
         <BrandMark size={56} />
-        <h2 className="mt-6 text-[clamp(20px,6vw,60px)] font-bold leading-[1.08] tracking-[-0.03em]">
-          Connect Gmail.
-          <br />
-          <span className="text-muted">Preview the first run.</span>
-        </h2>
+        <FitLine as="h2" text="Connect Gmail. Preview the first run." min={17} max={64} className="mt-6 text-center font-semibold tracking-[-0.02em]" />
         <p className="mt-5 max-w-[520px] text-[17px] text-muted">Nothing changes until you press Apply. Every change after that has a receipt and an undo.</p>
         <div className="mt-7 flex flex-wrap justify-center gap-2.5">
           {cta}
