@@ -14,7 +14,7 @@ type Result = {
 };
 type Numbers = { total: number; capped: boolean; sampled: number; threads: number; unread: number; senders: { domain: string; count: number }[]; labels: { label: string; count: number }[] };
 type Distribution = { signal: keyof Signals; likely: number; unsure: number; unlikely: number } | null;
-type Response = { compiled: CompiledQuery | null; gmail: string; total: number; numbers?: Numbers; distribution?: Distribution; readState?: { unseen: number; seen: number }; primary?: keyof Signals | null; results: Result[]; dropped: number; excluded?: number; cost: { inputTokens: number; requests?: number; usd: number }; model?: string | null; error?: string };
+type Response = { compiled: CompiledQuery | null; gmail: string; total: number; numbers?: Numbers; distribution?: Distribution; readState?: { unseen: number; seen: number }; primary?: keyof Signals | null; results: Result[]; dropped: number; excluded?: number; cost: { inputTokens: number; requests?: number; usd: number }; model?: string | null; notice?: string | null; error?: string };
 
 const SIGNAL_LABEL: Record<keyof Signals, string> = { relevance: "relevant", needsReply: "needs my reply", waiting: "waiting on them", human: "human", disposable: "disposable", urgency: "urgent" };
 const SIGNAL_ORDER: (keyof Signals)[] = ["needsReply", "waiting", "relevance", "urgency", "human", "disposable"];
@@ -88,7 +88,12 @@ export function SearchResults({ q }: { q: string }) {
     setLoading(true); setMsg(null); setSelected(new Set());
     let json: Response;
     try {
-      const res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, limit: 60 }) });
+      // One quiet retry: a cold database connection or a Jev hiccup should not surface as an error.
+      let res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, limit: 60 }) });
+      if (res.status >= 500) {
+        await new Promise((r) => setTimeout(r, 1200));
+        res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, limit: 60 }) });
+      }
       json = (await res.json().catch(() => ({}))) as Response;
       if (!res.ok && !json.error) json = { ...json, error: `Search failed (${res.status}).` };
     } catch (err) {
@@ -154,6 +159,7 @@ export function SearchResults({ q }: { q: string }) {
     <div className="space-y-4">
       {loading && !data ? <p className="flex items-center gap-2 text-sm text-muted"><Sparkles size={14} className="animate-pulse" aria-hidden="true" /> Compiling with Jev, searching Gmail, reading threads, ranking…</p> : null}
       {errorText ? <p className="card text-sm" style={{ borderColor: "var(--ink)" }}>{errorText}</p> : null}
+      {data?.notice && !errorText ? <p className="card text-sm text-muted">{data.notice}</p> : null}
 
       {data && !errorText ? (
         <div className="card space-y-5">

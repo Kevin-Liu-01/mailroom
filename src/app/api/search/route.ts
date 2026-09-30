@@ -39,16 +39,31 @@ export async function POST(req: Request) {
     const idToLabel = new Map(labels.map((l) => [l.id, l.name]));
     let compiled: CompiledQuery | null = null;
     let gmailQuery = body.gmail?.trim();
+    let notice: string | null = null;
     if (!gmailQuery) {
       if (!body.q?.trim()) return NextResponse.json({ error: "empty query" }, { status: 400 });
-      compiled = await compileSearch(body.q, { knownSenders: known, hasLabel: (n) => labelNames.has(n) });
-      // Gmail does not search into nested labels, so reach the user's "Receipts/Uber" from "Receipts".
-      gmailQuery = expandLabelQuery(compiled.gmail, labelNames);
+      try {
+        compiled = await compileSearch(body.q, { knownSenders: known, hasLabel: (n) => labelNames.has(n) });
+        // Gmail does not search into nested labels, so reach the user's "Receipts/Uber" from "Receipts".
+        gmailQuery = expandLabelQuery(compiled.gmail, labelNames);
+      } catch (err) {
+        // Jev is down or the compiler tripped: run the words as a plain Gmail search rather than failing the page.
+        console.error("[search] compile failed", { q: body.q.slice(0, 200), error: err instanceof Error ? err.message : String(err) });
+        gmailQuery = body.q.trim();
+        notice = "Jev could not read the question, so this is a plain Gmail search of your words.";
+      }
     }
     const countMode = Boolean(compiled?.count);
     // Counting lists ids only (cheap, 500 per page) up to a cap. Thread-aware questions scan deeper because threads collapse.
     const scan = countMode ? 5000 : compiled?.threadAware ? Math.min(limit * 2, 160) : limit;
-    const allIds = await gmail.listMessageIds(gmailQuery, scan);
+    let allIds: string[];
+    try {
+      allIds = await gmail.listMessageIds(gmailQuery, scan);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/invalid|400|bad request/i.test(message)) return NextResponse.json({ error: `Gmail rejected the query: ${message}`, gmail: gmailQuery, compiled }, { status: 400 });
+      throw err;
+    }
     const ids = allIds.slice(0, countMode ? Math.min(limit, 80) : scan);
     const metas = (await mapLimit(ids, 8, (id) => gmail.getMessageMeta(id).catch(() => null))).filter((m): m is NonNullable<typeof m> => Boolean(m));
 
@@ -124,8 +139,10 @@ export async function POST(req: Request) {
       results = kept;
     }
     const readState = { unseen: results.filter((r) => r.latestUnread).length, seen: results.filter((r) => !r.latestUnread).length };
-    return NextResponse.json({ compiled, gmail: gmailQuery, total: allIds.length, numbers, distribution, readState, primary, results, dropped, excluded, cost: { inputTokens, requests, usd: inputTokens * USD_PER_INPUT_TOKEN }, model: model ?? null });
+    return NextResponse.json({ compiled, gmail: gmailQuery, notice, total: allIds.length, numbers, distribution, readState, primary, results, dropped, excluded, cost: { inputTokens, requests, usd: inputTokens * USD_PER_INPUT_TOKEN }, model: model ?? null });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[search] failed", { q: body.q?.slice(0, 200), gmail: body.gmail?.slice(0, 200), error: message, stack: err instanceof Error ? err.stack?.split("\n").slice(0, 4).join(" | ") : undefined });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
