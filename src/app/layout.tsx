@@ -6,6 +6,7 @@ import { Database, Lock, ShieldOff, Undo2 } from "lucide-react";
 import { auth, signOut } from "@/auth";
 import { BrandMark, Wordmark } from "@/components/BrandMark";
 import { GmailMark } from "@/components/GmailMark";
+import { TypeSafeMark } from "@/components/landing/TypeSafeMark";
 import { SignInButton } from "@/components/SignInButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
@@ -94,7 +95,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <li className={claim}><Undo2 size={13} aria-hidden="true" /> Every run undoable</li>
             <li className={claim}><ShieldOff size={13} aria-hidden="true" /> Never sent, never deleted for good</li>
           </ul>
-          <span className="flex flex-wrap items-center gap-3"><Link href="/privacy" className="hover:text-ink">Privacy</Link><Link href="/terms" className="hover:text-ink">Terms</Link><span>Judgments by TypeSafe Jev · Built by Kevin Liu</span></span>
+          <span className="flex flex-wrap items-center gap-3"><Link href="/privacy" className="hover:text-ink">Privacy</Link><Link href="/terms" className="hover:text-ink">Terms</Link><span className={claim}><TypeSafeMark size={13} /> Judgments by TypeSafe Jev · Built by Kevin Liu</span></span>
         </footer>
       </body>
     </html>

@@ -9,6 +9,7 @@ import { RunFlow } from "@/components/landing/RunFlow";
 import { SearchDiagram } from "@/components/landing/SearchDiagram";
 import { TrashDiagram } from "@/components/landing/TrashDiagram";
 import { JudgmentCard } from "@/components/landing/JudgmentCard";
+import { TypeSafeLockup } from "@/components/landing/TypeSafeMark";
 import { ClosingBand } from "@/components/landing/ClosingBand";
 import { FitLine, IconCard, Seam, SectionHead, emWidth } from "@/components/landing/Section";
 import { LabelGrid } from "@/components/landing/LabelGrid";
@@ -28,7 +29,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
     ? <Link href="/app" className="btn-primary text-[15px]"><GmailMark size={16} /> Open your dashboard <ArrowRight size={16} aria-hidden="true" /></Link>
     : <SignInButton label="Connect Gmail" className="btn-primary text-[15px]" />;
   // "Your " and " sorted." in Camber, the Gmail M (0.88em plus its margins), and "Gmail," in Google Sans Flex.
-  const heroEm = emWidth("Your ", "camber", -0.03) + 1.08 + 3.0 + emWidth(" sorted.", "camber", -0.03);
+  const heroEm = emWidth("Your ", "camber", 0.01) + 1.08 + 3.0 + emWidth(" sorted.", "camber", 0.01);
   const costs: { icon: LucideIcon; n: string; t: string }[] = [
     { icon: BadgeDollarSign, n: "$0", t: "for every rule, every day" },
     { icon: Coins, n: `$${perThousand.toFixed(2)}`, t: "per 1,000 emails judged" },
@@ -40,7 +41,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       <section id="hero" className="section relative">
         <div className="dither" aria-hidden="true" />
         <div className="relative">
-          <FitLine as="h1" em={heroEm} min={22} max={112} className="rise text-center font-semibold tracking-[-0.03em]">
+          <FitLine as="h1" em={heroEm} min={22} max={112} className="rise text-center font-semibold tracking-[0.01em]">
             Your <GmailMark className="ml-[.04em] mr-[.16em] inline-block h-[.88em] w-[.88em] align-[-.1em]" /><span className="gmail-word">Gmail,</span> sorted.
           </FitLine>
         </div>
@@ -97,7 +98,19 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       <Seam />
 
       <section id="ai" className="section grid items-center gap-12 lg:grid-cols-2">
-        <SectionHead icon={BrainCircuit} title="Five typed questions.">One judgment each, on metadata only. Probabilities, not prose. Judged once, cached forever.</SectionHead>
+        <div className="space-y-8">
+          <SectionHead icon={BrainCircuit} title="Five typed questions.">One judgment each, on metadata only. Probabilities, not prose. Judged once, cached forever.</SectionHead>
+          <div className="card space-y-4">
+            <a href="https://typesafe.ai" target="_blank" rel="noreferrer" className="inline-flex text-ink" aria-label="TypeSafe AI"><TypeSafeLockup height={22} /></a>
+            <p className="m-0 text-[15.5px] leading-snug">
+              <b>Jev</b> is TypeSafe AI&apos;s System One model. It does not write. Given a piece of state and a typed question, it answers with a probability, in one fast pass. Mailroom asks it five questions per email and reads the numbers. The rules stay in code.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <a href="https://docs.typesafe.ai/concepts/system-one" target="_blank" rel="noreferrer" className="btn btn-sm">What System One is <ArrowRight size={13} aria-hidden="true" /></a>
+              <a href="https://typesafe.ai" target="_blank" rel="noreferrer" className="btn btn-sm">typesafe.ai</a>
+            </div>
+          </div>
+        </div>
         <JudgmentCard />
       </section>
 
