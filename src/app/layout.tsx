@@ -41,8 +41,8 @@ export const metadata: Metadata = {
   verification: { google: "3rhZfQGUOEb4MxiPhacvNbcB513B-hB2IxA-UPef4TY" },
   description: "A sorting room for your Gmail. Rules you can read, typed AI judgments that cost pennies, natural-language search, and a straight answer to what to trash. Every run previews first and can be undone.",
   metadataBase: new URL(url),
-  openGraph: { title: "Mailroom", description: "A sorting room for your Gmail: rules, cheap typed AI judgments, natural-language search, receipts and undo.", url, siteName: "Mailroom" },
-  twitter: { card: "summary_large_image", title: "Mailroom", description: "A sorting room for your Gmail." },
+  openGraph: { title: "Mailroom", description: "Your Gmail, sorted. Rules you can read, typed AI judgments for pennies, a straight answer to what to trash.", url, siteName: "Mailroom", images: [{ url: "/og.png", width: 1200, height: 630, alt: "Your Gmail, sorted. Mail rides a belt into the Jev sorter and drops into labeled buckets." }] },
+  twitter: { card: "summary_large_image", title: "Mailroom", description: "Your Gmail, sorted.", images: ["/og.png"] },
 };
 
 const themeInit = `try{var t=localStorage.getItem('mailroom-theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t}catch(e){}`;
@@ -59,7 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const session = await auth();
   return (
     <html lang="en" className={`${berkeley.variable} ${camber.variable} ${googleSans.variable}`} suppressHydrationWarning>
-      <body className="min-h-screen antialiased">
+      <body className="flex min-h-screen flex-col antialiased">
         <Script id="mailroom-theme-init" strategy="beforeInteractive">{themeInit}</Script>
         <header className="frame sticky top-0 z-50 flex min-h-[68px] flex-wrap items-center justify-between gap-3 border-b border-line bg-page px-4 py-2 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5 no-underline" aria-label="mailroom home">
@@ -86,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             )}
           </div>
         </header>
-        <main className="frame">{children}</main>
+        <main className="frame flex-1">{children}</main>
         <footer className="frame font-mono flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line px-6 py-5 text-[12.5px] text-muted">
           <ul className="m-0 flex list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
             <li className={claim}><BrandMark size={16} /> mailroom</li>
