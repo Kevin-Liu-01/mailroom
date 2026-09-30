@@ -25,7 +25,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   // Label ids read as names when Gmail is reachable; system ids have fixed names.
   const names = new Map<string, string>(Object.entries(SYSTEM_LABELS));
   if (batches.length) {
-    try { for (const l of await (await gmailFor(session.user.id)).gmail.listLabels()) names.set(l.id, l.name); } catch { /* fall back to ids */ }
+    try { for (const l of await (await gmailFor(session.user.id)).gmail.listLabels()) if (l.type === "user") names.set(l.id, l.name); } catch { /* fall back to ids */ }
   }
   const labelName = (l: string) => names.get(l) ?? l;
   return (
