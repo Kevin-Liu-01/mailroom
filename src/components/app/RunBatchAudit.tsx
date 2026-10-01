@@ -46,7 +46,7 @@ export function RunBatchAudit({ runId, batchId, total, kind }: { runId: string; 
   }
 
   const counts = useMemo(() => ({ agree: rows.filter((r) => r.verdict === "agree").length, unsure: rows.filter((r) => r.verdict === "unsure").length, disagree: rows.filter((r) => r.verdict === "disagree").length }), [rows]);
-  const flagged = useMemo(() => rows.filter((r) => r.verdict && r.verdict !== "agree"), [rows]);
+  const flagged = useMemo(() => rows.filter((r) => r.verdict && r.verdict !== "agree").sort((a, b) => (a.verdict === b.verdict ? (b.worthKeeping ?? 0) - (a.worthKeeping ?? 0) : a.verdict === "disagree" ? -1 : 1)), [rows]);
   const graded = counts.agree + counts.unsure + counts.disagree;
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const restoreWord = kind === "trash" ? "Take out of Trash" : kind === "archive" ? "Put back in the inbox" : "Undo the label";

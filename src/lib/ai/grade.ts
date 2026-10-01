@@ -51,13 +51,19 @@ export async function gradeAction(meta: GmailMessageMeta, rule: RuleIntent, user
     questions: GRADE_QUESTIONS,
   });
   const actionOk = res.answers.action_ok.noul, belongs = res.answers.belongs.noul, worthKeeping = res.answers.worth_keeping.noul;
-  const verdict: Verdict = actionOk >= 0.7 && worthKeeping < 0.6 ? "agree" : actionOk <= 0.35 || worthKeeping >= 0.7 ? "disagree" : "unsure";
+  // The gate is the two crisp facts. "Was it the right call" is a hedge-prone composite, so it only breaks ties.
+  const verdict: Verdict =
+    worthKeeping >= 0.6 || belongs <= 0.35 || actionOk <= 0.3 ? "disagree"
+    : worthKeeping <= 0.4 && belongs >= 0.6 ? "agree"
+    : actionOk >= 0.6 && worthKeeping < 0.5 ? "agree"
+    : "unsure";
   const verb = rule.kind === "trash" ? "trashed" : rule.kind === "archive" ? "archived" : "labeled";
   const why =
     worthKeeping >= 0.6 ? `Looks worth keeping (${pct(worthKeeping)})`
-    : belongs < 0.4 ? `Does not look like what the rule targets (${pct(belongs)})`
-    : actionOk < 0.5 ? `Jev would not have ${verb} it (${pct(actionOk)})`
-    : `Right call (${pct(actionOk)})`;
+    : belongs <= 0.35 ? `Does not look like what the rule targets (${pct(belongs)})`
+    : actionOk <= 0.3 ? `Jev would not have ${verb} it (${pct(actionOk)})`
+    : verdict === "agree" ? `Fits the rule (${pct(belongs)}), nothing to keep (${pct(worthKeeping)})`
+    : `Mixed: fits the rule ${pct(belongs)}, worth keeping ${pct(worthKeeping)}`;
   return { verdict, actionOk, belongs, worthKeeping, why, inputTokens: res.usage.input_tokens, model: res.model };
 }
 
