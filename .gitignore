@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# licensed fonts: Berkeley Mono (Berkeley Graphics) and Camber (Emtype) must not be redistributed.
+# Drop your own copies here, or run `pnpm fonts:fallback` to fetch open stand-ins with the same filenames.
+src/app/fonts/BerkeleyMono-*
+src/app/fonts/Camber-*
+
+
+# tooling residue from a Neon plugin install; not part of the app
+.agents/

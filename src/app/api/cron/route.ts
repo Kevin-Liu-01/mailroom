@@ -1,3 +1,4 @@
+import { withUserKey } from "@/lib/ai/client";
 import { NextResponse } from "next/server";
 import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
         await snapshotMailbox(gmail, mb.userId);
         // Refresh sender intelligence weekly so the "what to trash" view stays current without a click.
         const [last] = await db.select({ at: schema.senderProfiles.scannedAt }).from(schema.senderProfiles).where(eq(schema.senderProfiles.userId, mb.userId)).orderBy(desc(schema.senderProfiles.scannedAt)).limit(1);
-        if (!last || Date.now() - last.at.getTime() > 7 * 86400_000) await scanSenders({ gmail, userId: mb.userId, days: 90, maxMessages: 1200, budgetUsd: 0.25 });
+        if (!last || Date.now() - last.at.getTime() > 7 * 86400_000) await withUserKey(mb.userId, () => scanSenders({ gmail, userId: mb.userId, days: 90, maxMessages: 1200, budgetUsd: 0.25 }));
       } catch { /* stats and sender scans are best effort */ }
       report.push({ userId: mb.userId, ok: true, applied: r.summary.totalApplied });
     } catch (err) {

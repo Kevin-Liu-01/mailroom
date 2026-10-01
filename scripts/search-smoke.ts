@@ -1,5 +1,6 @@
 // Runs realistic questions through the TypeSafe-backed query compiler and prints the Gmail query.
 // Run: set -a; . ./.env.local; set +a; ./node_modules/.bin/tsx --tsconfig tsconfig.json scripts/search-smoke.ts [extra queries...]
+import { withKey } from "@/lib/ai/client";
 import { compileSearch } from "@/lib/search/compile";
 const known = [
   { domain: "uber.com", name: "Uber Receipts" }, { domain: "em.target.com", name: "Target" }, { domain: "chase.com", name: "Chase" },
@@ -26,4 +27,4 @@ async function main() {
   }
   console.log(`\n${qs.length} queries, ${tokens} input tokens`);
 }
-main();
+withKey(process.env.TYPESAFE_API_KEY ?? "", main);

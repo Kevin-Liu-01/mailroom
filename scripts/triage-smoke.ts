@@ -1,4 +1,5 @@
 // Smoke test for the TypeSafe triage questions against realistic metadata. Run: pnpm smoke:triage
+import { withKey } from "@/lib/ai/client";
 import { triageMessage } from "@/lib/ai/triage";
 const samples = [
   { from: "Coastal Recruiting <hello@coastalrecruiting.io>", subject: "Senior Frontend Engineer role - $210k - remote", snippet: "Hi Kevin, I came across your profile and think you'd be a great fit for a Senior Frontend role at a Series B fintech. Are you open to a quick chat this week?", list: "<mailto:unsub@coastalrecruiting.io>" },
@@ -15,4 +16,4 @@ for (const s of samples) {
   console.log(`${s.subject.padEnd(48)} -> ${j.category.padEnd(11)} conf ${j.categoryConfidence.toFixed(2)}  automated ${j.automated.toFixed(2)}  action ${j.needsAction.toFixed(2)}  time ${j.timeSensitive.toFixed(2)}  tokens ${r.inputTokens} model ${r.model}`);
 }
 }
-main();
+withKey(process.env.TYPESAFE_API_KEY ?? "", main);

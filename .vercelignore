@@ -1,0 +1,11 @@
+# Vercel CLI uploads from the working tree, not from git, so the licensed fonts kept out of git still ship.
+node_modules
+.next
+.git
+.env*
+!.env.example
+coverage
+docs
+tests
+scripts
+.github

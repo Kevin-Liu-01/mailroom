@@ -17,6 +17,8 @@ export const users = pgTable("users", {
   email: text("email").unique(),
   emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
+  // Bring your own key: the user's TypeSafe API key, AES-256-GCM encrypted. Null means Jev is off for this account.
+  typesafeKey: text("typesafe_key"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 

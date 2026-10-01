@@ -57,7 +57,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
           </div>
           <p className="rise rise-4 mt-6 inline-flex items-center gap-2 text-[14px] text-muted"><Undo2 size={15} aria-hidden="true" /> Every run previews first and can be undone.</p>
           {session?.user ? null : (
-            <p className="rise rise-5 mt-2 flex items-start gap-2 text-[13px] text-muted"><ShieldAlert size={15} className="mt-0.5 shrink-0" aria-hidden="true" /><span>Google&apos;s review is pending, so it warns that the app is unverified. Click Advanced, then Go to mailroom.</span></p>
+            <p className="rise rise-5 mt-2 flex items-start gap-2 text-[13px] text-muted"><ShieldAlert size={15} className="mt-0.5 shrink-0" aria-hidden="true" /><span>A personal tool, not Google-verified: sign-in shows a warning, so click Advanced, then Go to mailroom. Bring your own TypeSafe key, or <a href="https://github.com/Kevin-Liu-01/mailroom" className="underline" target="_blank" rel="noreferrer">clone it and run your own</a>.</span></p>
           )}
         </div>
         <div className="relative rise rise-3">

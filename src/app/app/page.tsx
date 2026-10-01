@@ -15,6 +15,8 @@ import { SearchBox } from "@/components/app/SearchBox";
 import { LabelBars, TabStack, VolumeBars } from "@/components/app/Charts";
 import { RefreshStats } from "@/components/app/RefreshStats";
 import { Bars, CATEGORY_TONE, CardTitle, CategoryChip, Empty, Meta, PageHead, SectionTitle, SenderMark, Stat, TonedChip, TonedMeter } from "@/components/app/Bits";
+import { KeyCard } from "@/components/app/KeyCard";
+import { resolveKey } from "@/lib/ai/client";
 import { latestSnapshot } from "@/lib/engine/stats";
 import { gmailFor } from "@/lib/engine/run";
 import { mapLimit } from "@/lib/gmail/client";
@@ -41,6 +43,8 @@ export default async function Dashboard() {
     senderOverview(userId, mailbox.policy),
   ]);
   const needsReauth = mailbox.status === "needs_reauth";
+  const jevKey = await resolveKey(userId);
+  const keyState = { hasKey: Boolean(jevKey), source: jevKey?.source ?? null, last4: jevKey?.source === "own" ? jevKey.key.slice(-4) : null };
   const since = daysAgo(14);
   const recent = await db.select().from(schema.aiJudgments).where(and(eq(schema.aiJudgments.userId, userId), gte(schema.aiJudgments.createdAt, since))).orderBy(desc(schema.aiJudgments.receivedAt)).limit(300);
   // One row per conversation, newest first, and nothing the user has already answered.
@@ -94,6 +98,8 @@ export default async function Dashboard() {
           <SignInButton label="Reconnect Gmail" />
         </div>
       ) : null}
+
+      {!jevKey ? <KeyCard initial={keyState} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon={Inbox} value={stats ? num(stats.inbox.threads) : "—"} label="In your inbox" />
@@ -220,6 +226,8 @@ export default async function Dashboard() {
           </div>
         ) : <Empty icon={History}>No runs yet.</Empty>}
       </section>
+
+      {jevKey ? <KeyCard initial={keyState} /> : null}
 
       <section className="card flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-start gap-4">

@@ -9,6 +9,7 @@ import { expandLabelQuery } from "@/lib/gmail/labels";
 import { addThreadContext, groupThreads } from "@/lib/search/threads";
 import { rerankThreads, scoreOf, type Signals } from "@/lib/search/rerank";
 import { USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
+import { resolveKey, withKey } from "@/lib/ai/client";
 
 export const maxDuration = 120;
 
@@ -40,10 +41,16 @@ export async function POST(req: Request) {
     let compiled: CompiledQuery | null = null;
     let gmailQuery = body.gmail?.trim();
     let notice: string | null = null;
+    const key = await resolveKey(userId);
+    if (!gmailQuery && !key) {
+      if (!body.q?.trim()) return NextResponse.json({ error: "empty query" }, { status: 400 });
+      gmailQuery = body.q.trim();
+      notice = "Add your TypeSafe key in the dashboard and Jev will read the question. Until then this is a plain Gmail search of your words.";
+    }
     if (!gmailQuery) {
       if (!body.q?.trim()) return NextResponse.json({ error: "empty query" }, { status: 400 });
       try {
-        compiled = await compileSearch(body.q, { knownSenders: known, hasLabel: (n) => labelNames.has(n) });
+        compiled = await withKey(key!.key, () => compileSearch(body.q!, { knownSenders: known, hasLabel: (n) => labelNames.has(n) }));
         // Gmail does not search into nested labels, so reach the user's "Receipts/Uber" from "Receipts".
         gmailQuery = expandLabelQuery(compiled.gmail, labelNames);
       } catch (err) {
@@ -85,8 +92,8 @@ export async function POST(req: Request) {
     let requests = compiled ? 1 : 0;
     let model = compiled?.model;
     let signals = new Map<string, Signals>();
-    if (compiled && body.rerank !== false && !countMode) {
-      const r = await rerankThreads(compiled, rows, email);
+    if (compiled && key && body.rerank !== false && !countMode) {
+      const r = await withKey(key.key, () => rerankThreads(compiled!, rows, email));
       signals = r.signals; inputTokens += r.inputTokens; requests += r.requests; model = r.model ?? model;
     }
 

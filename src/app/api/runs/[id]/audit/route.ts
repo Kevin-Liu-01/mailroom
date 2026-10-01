@@ -6,6 +6,7 @@ import { gmailFor } from "@/lib/engine/run";
 import { mapLimit } from "@/lib/gmail/client";
 import { describeBatch, gradeAction } from "@/lib/ai/grade";
 import { USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
+import { NoKeyError, withUserKey } from "@/lib/ai/client";
 
 export const maxDuration = 60;
 const SYSTEM: Record<string, string> = { TRASH: "Trash", INBOX: "Inbox", UNREAD: "Unread", IMPORTANT: "Important", STARRED: "Starred" };
@@ -24,6 +25,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const [batch] = await db.select().from(schema.runBatches).where(and(eq(schema.runBatches.id, body.batchId), eq(schema.runBatches.runId, id))).limit(1);
   if (!batch) return NextResponse.json({ error: "not found" }, { status: 404 });
   try {
+    return await withUserKey(userId, async () => {
     const { gmail, email } = await gmailFor(userId);
     const names = new Map<string, string>(Object.entries(SYSTEM));
     for (const l of await gmail.listLabels()) if (l.type === "user") names.set(l.id, l.name);
@@ -45,7 +47,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     });
     return NextResponse.json({ total: batch.messageIds.length, offset, rule, rows, cost: { inputTokens, usd: inputTokens * USD_PER_INPUT_TOKEN }, model });
+    });
   } catch (err) {
+    if (err instanceof NoKeyError) return NextResponse.json({ error: err.message }, { status: 400 });
     console.error("[audit] failed", { runId: id, batchId: body.batchId, error: err instanceof Error ? err.message : String(err) });
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }

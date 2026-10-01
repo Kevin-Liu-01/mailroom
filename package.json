@@ -2,6 +2,25 @@
   "name": "mailroom",
   "version": "0.1.0",
   "private": true,
+  "description": "Your Gmail, sorted. Rules you can read, typed AI judgments from TypeSafe's Jev for pennies, receipts and undo for everything.",
+  "license": "MIT",
+  "homepage": "https://mailroom.kevinliu.studio",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kevin-Liu-01/mailroom.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kevin-Liu-01/mailroom/issues"
+  },
+  "keywords": [
+    "gmail",
+    "email",
+    "triage",
+    "typesafe",
+    "jev",
+    "nextjs",
+    "vercel"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +31,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "smoke:triage": "tsx --tsconfig tsconfig.json scripts/triage-smoke.ts",
-    "smoke:search": "tsx --tsconfig tsconfig.json scripts/search-smoke.ts"
+    "smoke:search": "tsx --tsconfig tsconfig.json scripts/search-smoke.ts",
+    "fonts:fallback": "node scripts/fonts.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

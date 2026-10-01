@@ -5,6 +5,7 @@ import { GmailAuthError, GmailClient, mapLimit, refreshAccessToken, type GmailMe
 import { ACTION_LABEL, AI_LABEL, LABEL_BY_CATEGORY, type CategoryId, type PolicyConfig } from "@/lib/policy/schema";
 import { ALL_TAXONOMY_LABELS, buildFilters, buildRules, resolveRule } from "@/lib/policy/rules";
 import { estimateCostUsd, triageMessage, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
+import { resolveKey, withKey } from "@/lib/ai/client";
 import { expandLabelQuery } from "@/lib/gmail/labels";
 import { summarizeThread } from "@/lib/search/threads";
 import type { AiUsage, Judgment, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
@@ -104,10 +105,15 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
 
     // 2. TypeSafe triage of Primary mail the rules could not place.
     let ai: RunSummary["ai"] | undefined;
-    if (policy.ai.enabled && process.env.TYPESAFE_API_KEY && policy.ai.maxMessagesPerRun > 0) {
-      ai = await triagePrimary({ gmail, email, userId, policy, labels, mode, batches });
-      totalApplied += ai.labeled + ai.archived + ai.flaggedAction;
-      results.push({ id: "ai-triage", kind: "ai", matched: ai.messagesConsidered, applied: ai.labeled + ai.archived + ai.flaggedAction });
+    if (policy.ai.enabled && policy.ai.maxMessagesPerRun > 0) {
+      const key = await resolveKey(userId);
+      if (key) {
+        ai = await withKey(key.key, () => triagePrimary({ gmail, email, userId, policy, labels, mode, batches }));
+        totalApplied += ai.labeled + ai.archived + ai.flaggedAction;
+        results.push({ id: "ai-triage", kind: "ai", matched: ai.messagesConsidered, applied: ai.labeled + ai.archived + ai.flaggedAction });
+      } else {
+        results.push({ id: "ai-triage", kind: "ai", matched: 0, applied: 0, error: "No TypeSafe key on this account; add one in the dashboard." });
+      }
     }
 
     if (batches.length) {
