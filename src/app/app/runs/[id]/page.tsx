@@ -9,6 +9,7 @@ import { UndoButton } from "@/components/UndoButton";
 import { num, when } from "@/lib/format";
 import { CardTitle, Meta, PageHead, TonedChip } from "@/components/app/Bits";
 import { RunBatchMessages } from "@/components/app/RunBatchMessages";
+import { RunBatchAudit } from "@/components/app/RunBatchAudit";
 import { gmailFor } from "@/lib/engine/run";
 
 const SYSTEM_LABELS: Record<string, string> = { TRASH: "Trash", INBOX: "Inbox", UNREAD: "Unread", IMPORTANT: "Important", STARRED: "Starred", SPAM: "Spam" };
@@ -52,6 +53,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
               </div>
             </div>
             <RunBatchMessages runId={run.id} batchId={b.id} total={b.messageIds.length} />
+            {run.mode === "apply" ? <RunBatchAudit runId={run.id} batchId={b.id} total={b.messageIds.length} kind={b.addLabelIds.includes("TRASH") ? "trash" : b.removeLabelIds.includes("INBOX") && !b.addLabelIds.length ? "archive" : "label"} /> : null}
           </section>
         )) : <p className="card m-0 text-sm text-muted">{run.mode === "dry-run" ? "Previews send nothing to Gmail." : "No changes were needed."}</p>}
       </div>
