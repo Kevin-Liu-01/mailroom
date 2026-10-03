@@ -32,7 +32,8 @@
     "db:studio": "drizzle-kit studio",
     "smoke:triage": "tsx --tsconfig tsconfig.json scripts/triage-smoke.ts",
     "smoke:search": "tsx --tsconfig tsconfig.json scripts/search-smoke.ts",
-    "fonts:fallback": "node scripts/fonts.mjs"
+    "fonts:fallback": "node scripts/fonts.mjs",
+    "filters:audit": "tsx --tsconfig tsconfig.json scripts/filters-audit.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
