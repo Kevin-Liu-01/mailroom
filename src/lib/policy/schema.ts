@@ -35,7 +35,7 @@ export const PolicySchema = z.object({
   version: z.literal(1),
   categories: z.object({
     // Categories that leave the inbox on arrival (still labeled and searchable).
-    skipInbox: z.array(z.enum(CATEGORY_IDS)).default(["dev", "social", "receipts"]),
+    skipInbox: z.array(z.enum(CATEGORY_IDS)).default(["dev", "receipts"]),
     // Categories whose mail is never marked important by Gmail's importance markers.
     neverImportant: z.array(z.enum(CATEGORY_IDS)).default(["dev", "social", "newsletters", "marketing"]),
     // Categories Gmail should always treat as important.

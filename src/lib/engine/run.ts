@@ -37,26 +37,33 @@ function sameFilter(existing: { criteria: Record<string, string> }, spec: { crit
   return (existing.criteria.from ?? "") === (spec.criteria.from ?? "") && (existing.criteria.subject ?? "") === (spec.criteria.subject ?? "") && (existing.criteria.query ?? "") === (spec.criteria.query ?? "");
 }
 
-/** Create the taxonomy labels and, in apply mode, the standing Gmail filters the policy wants. Returns label name -> id. */
-async function ensureSetup(gmail: GmailClient, policy: PolicyConfig, mode: RunMode): Promise<{ labels: Record<string, string>; filtersCreated: number }> {
+const sameSet = (a: string[] = [], b: string[] = []) => a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i]);
+
+/**
+ * Create the taxonomy labels and, in apply mode, the standing Gmail filters the policy wants. A filter whose criteria
+ * match but whose action no longer does (a category moved on or off the skip-inbox list, say) is deleted and recreated,
+ * so a policy change takes effect at the next apply instead of leaving a stale filter firing forever.
+ */
+async function ensureSetup(gmail: GmailClient, policy: PolicyConfig, mode: RunMode): Promise<{ labels: Record<string, string>; filtersCreated: number; filtersReplaced: number }> {
   const labels = await gmail.ensureLabels([...ALL_TAXONOMY_LABELS, ACTION_LABEL, AI_LABEL]);
-  let filtersCreated = 0;
+  let filtersCreated = 0, filtersReplaced = 0;
   if (mode === "apply") {
     const existing = await gmail.listFilters();
     for (const spec of buildFilters(policy)) {
-      if (existing.some((f) => sameFilter(f, spec))) continue;
+      const add = spec.action.addLabelNames.map((n) => labels[n] ?? n);
+      const remove = spec.action.removeLabelIds;
+      const matches = existing.filter((f) => sameFilter(f, spec));
+      if (matches.some((f) => sameSet(f.action.addLabelIds, add) && sameSet(f.action.removeLabelIds, remove))) continue;
+      for (const stale of matches) { await gmail.deleteFilter(stale.id); filtersReplaced++; }
       const criteria: Record<string, string> = {};
       if (spec.criteria.from) criteria.from = spec.criteria.from;
       if (spec.criteria.subject) criteria.subject = spec.criteria.subject;
       if (spec.criteria.query) criteria.query = spec.criteria.query;
-      await gmail.createFilter(criteria, {
-        addLabelIds: spec.action.addLabelNames.map((n) => labels[n] ?? n),
-        removeLabelIds: spec.action.removeLabelIds,
-      });
-      filtersCreated++;
+      await gmail.createFilter(criteria, { addLabelIds: add, removeLabelIds: remove });
+      if (!matches.length) filtersCreated++;
     }
   }
-  return { labels, filtersCreated };
+  return { labels, filtersCreated, filtersReplaced };
 }
 
 export async function runMailbox(opts: { userId: string; mode: RunMode; trigger: RunTrigger }): Promise<{ runId: string; summary: RunSummary }> {
@@ -72,8 +79,9 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
 
   try {
     const { gmail, email } = await gmailFor(userId);
-    const { labels, filtersCreated } = await ensureSetup(gmail, policy, mode);
+    const { labels, filtersCreated, filtersReplaced } = await ensureSetup(gmail, policy, mode);
     if (filtersCreated) results.push({ id: "setup-filters", kind: "label", matched: filtersCreated, applied: filtersCreated });
+    if (filtersReplaced) results.push({ id: "setup-filters-replaced", kind: "label", matched: filtersReplaced, applied: filtersReplaced, skipped: "a filter's action changed with the policy, so it was recreated" });
     if (!mailbox.labelsReady && mode === "apply") await db.update(mailboxes).set({ labelsReady: true }).where(eq(mailboxes.userId, userId));
 
     // 1. Deterministic rules: free, exact, re-runnable by hand.

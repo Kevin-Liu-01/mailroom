@@ -155,6 +155,10 @@ export class GmailClient {
   async createFilter(criteria: Record<string, string>, action: { addLabelIds?: string[]; removeLabelIds?: string[] }): Promise<void> {
     await this.call("/settings/filters", { method: "POST", body: JSON.stringify({ criteria, action }) });
   }
+
+  async deleteFilter(id: string): Promise<void> {
+    await this.call(`/settings/filters/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
 }
 
 /** Run an async mapper with bounded concurrency, preserving order. */
