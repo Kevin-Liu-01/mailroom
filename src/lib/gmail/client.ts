@@ -1,6 +1,6 @@
 /**
- * Minimal Gmail REST client over fetch. Only the handful of endpoints the engine needs,
- * with token refresh, 429/5xx backoff, and no message bodies ever requested.
+ * Minimal Gmail REST client over fetch. Only the handful of endpoints the engine needs, with token refresh, pacing
+ * under the per-user quota, 429/5xx backoff, and no message bodies ever requested.
  */
 export type GmailLabel = { id: string; name: string; type: "system" | "user"; threadsTotal?: number; threadsUnread?: number; messagesTotal?: number; messagesUnread?: number };
 export type GmailMessageMeta = {
@@ -21,6 +21,26 @@ export class GmailRateLimit extends Error {}
 export type GmailFilterCriteria = { from?: string; to?: string; subject?: string; query?: string; negatedQuery?: string; hasAttachment?: boolean; size?: number; sizeComparison?: string; excludeChats?: boolean };
 export type GmailFilterAction = { addLabelIds?: string[]; removeLabelIds?: string[]; forward?: string };
 export type GmailFilter = { id: string; criteria: GmailFilterCriteria; action: GmailFilterAction };
+
+/**
+ * Gmail meters each user per minute: 15,000 quota units, and a separate "Total Query Cost" of 6,000. Reading is what
+ * the second one prices: measured on a real mailbox, about 320 metadata reads fit in a fresh minute, while 1,800
+ * searches in 75 seconds drew no refusal. Sustained work past the budget earns 403s whose retries back off for seconds
+ * at a time, so the client paces itself instead: 100 units a second (the 6,000 a minute), halved whenever Gmail pushes
+ * back and eased back up as calls succeed. The burst covers one interactive request (a search reads ~60 messages and
+ * ~30 threads) without waiting.
+ */
+const UNITS_PER_SECOND = 100;
+const MIN_UNITS_PER_SECOND = 10;
+const BURST_UNITS = 2000;
+/** What a call costs against the tighter budget: reads as measured, everything else at Google's published rate. */
+export function quotaCost(path: string, method = "GET"): number {
+  if (path.startsWith("/messages/batchModify")) return 50;
+  if (/^\/(messages|threads)\/[^/?]+/.test(path)) return 20; // one message or thread read
+  if (path.startsWith("/messages")) return 5; // a search page
+  if (path.startsWith("/settings/filters") || path.startsWith("/labels")) return method === "GET" ? 1 : 5;
+  return 1;
+}
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
@@ -46,10 +66,36 @@ export async function revokeToken(token: string): Promise<void> {
 }
 
 export class GmailClient {
+  private tokens = BURST_UNITS;
+  private refilled = Date.now();
+  private rate = UNITS_PER_SECOND;
+  private cutAt = 0;
+  private turn: Promise<void> = Promise.resolve();
+
   /** `refresh` mints a new access token; long runs outlive the hour a token lasts, so a 401 refreshes once and retries. */
   constructor(private accessToken: string, private refresh?: () => Promise<string>) {}
 
+  /** Wait until `units` of quota are free. Concurrent callers take turns, so mapLimit workers share one budget. */
+  private pace(units: number): Promise<void> {
+    const mine = this.turn.then(async () => {
+      const refill = () => {
+        const now = Date.now();
+        this.tokens = Math.min(BURST_UNITS, this.tokens + ((now - this.refilled) * this.rate) / 1000);
+        this.refilled = now;
+      };
+      refill();
+      if (this.tokens < units) {
+        await new Promise((r) => setTimeout(r, ((units - this.tokens) * 1000) / this.rate));
+        refill();
+      }
+      this.tokens -= units;
+    });
+    this.turn = mine.catch(() => undefined);
+    return mine;
+  }
+
   private async call<T>(path: string, init: RequestInit = {}, attempt = 0, refreshed = false): Promise<T> {
+    await this.pace(quotaCost(path, init.method));
     const res = await fetch(`${API}${path}`, {
       ...init,
       headers: { Authorization: `Bearer ${this.accessToken}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
@@ -62,6 +108,14 @@ export class GmailClient {
     // Gmail signals per-user quota as 403 rateLimitExceeded / userRateLimitExceeded, not only as 429.
     const body = res.status === 403 ? await res.text() : "";
     const rateLimited = res.status === 429 || (res.status === 403 && /rateLimitExceeded|userRateLimitExceeded|Quota exceeded/i.test(body));
+    if (rateLimited) {
+      // Back off for everyone sharing this client, not just this call: halve the pace (once for a wave of concurrent
+      // refusals, not once per refusal) and spend what is banked.
+      if (Date.now() - this.cutAt > 2000) { this.rate = Math.max(MIN_UNITS_PER_SECOND, this.rate / 2); this.cutAt = Date.now(); }
+      this.tokens = Math.min(this.tokens, 0);
+    } else if (res.ok && this.rate < UNITS_PER_SECOND) {
+      this.rate = Math.min(UNITS_PER_SECOND, this.rate + 1);
+    }
     if ((rateLimited || res.status >= 500) && attempt < 6) {
       const retryAfter = Number(res.headers.get("retry-after")) || 0;
       await new Promise((r) => setTimeout(r, Math.max(retryAfter * 1000, 700 * 2 ** attempt + Math.random() * 300)));

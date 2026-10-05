@@ -41,6 +41,8 @@ export type RouteOrigin = "builtin" | "custom" | "senders";
 const SECURITY_SUBJECT =
   '"verification code" OR "security code" OR "one-time" OR "verify your email" OR "confirm your email" OR "sign-in attempt" OR "new sign-in" OR "login code" OR "password reset" OR "2-step" OR "two-factor" OR "your code is" OR "authentication code" OR "single-use code" OR "temporary password"';
 const ACCOUNT_WORDS = 'code OR verification OR verify OR "sign in" OR "sign-in" OR password OR security OR "new device" OR "steam guard" OR account';
+/** Phrases that mark a promotion even when it mentions an order or a trip ("50% off your next order"). */
+const PROMO_WORDS = '"your next" OR "your first" OR "off your" OR "off on" OR promo OR unlock OR "last chance" OR "limited time" OR "save on" OR "in advance"';
 const GAMES =
   "steampowered.com OR steamcommunity.com OR epicgames.com OR playstation.com OR sonyentertainmentnetwork.com OR xbox.com OR nintendo.com OR nintendo.net OR riotgames.com OR supercell.com OR nianticlabs.com OR blizzard.com OR battle.net OR ea.com OR ubisoft.com OR roblox.com OR gog.com OR humblebundle.com OR minecraft.net OR mojang.com";
 const STREAMING =
@@ -64,6 +66,7 @@ export const BUILTIN_ROUTES: (Route & { id: string; name: string })[] = [
     id: "receipts", name: "Orders, rides, and deliveries", category: "receipts",
     from: "uber.com OR ubereats.com OR lyft.com OR doordash.com OR grubhub.com OR instacart.com OR seamless.com OR postmates.com OR gopuff.com OR toasttab.com OR auto-confirm@amazon.com OR shipment-tracking@amazon.com OR order-update@amazon.com OR digital-no-reply@amazon.com OR payments-messages@amazon.com OR return@amazon.com OR ship-confirm@amazon.com OR no_reply@email.apple.com OR ebay.com OR etsy.com",
     subject: 'receipt OR order OR ordered OR trip OR shipped OR delivered OR "out for delivery" OR "no-contact delivery" OR arriving OR "your ride" OR invoice OR confirmation OR "payment received" OR "thank you for your purchase"',
+    except: PROMO_WORDS,
   },
   {
     id: "receipts-billing", name: "Software invoices", category: "receipts", from: SAAS,
@@ -203,8 +206,8 @@ export type CompiledRoute = {
   except: string[];
   /** More specific senders another category claims outright. */
   excludeSenders: string[];
-  /** Subject-qualified slices another category claims. */
-  excludeSlices: { senders: string[]; subject: string[] }[];
+  /** Subject-qualified slices another category claims, less any mail that route's own exceptions give back. */
+  excludeSlices: { senders: string[]; subject: string[]; except: string[] }[];
   /** Label names this route adds: the category, and the sub-label when there is one. */
   labels: string[];
   /** System labels to add (IMPORTANT, STARRED) and to remove (INBOX, IMPORTANT). */
@@ -267,7 +270,7 @@ export function compileRoutes(policy: PolicyConfig): { routes: CompiledRoute[]; 
   const conflicts = new Map<string, RouteConflict>();
   const routes: CompiledRoute[] = live.map((a) => {
     const excludeSenders = new Set<string>();
-    const slices = new Map<string, { senders: Set<string>; subject: string[] }>();
+    const slices = new Map<string, { senders: Set<string>; subject: string[]; except: string[] }>();
     if (a.senders.length) {
       for (const b of live) {
         if (b === a || b.route.category === a.route.category || !b.senders.length) continue;
@@ -277,8 +280,9 @@ export function compileRoutes(policy: PolicyConfig): { routes: CompiledRoute[]; 
           const shared = new Set<string>();
           for (const ta of a.senders) for (const tb of b.senders) { const o = overlap(ta, tb); if (o) shared.add(o); }
           if (shared.size) {
-            const key = b.subject.join("\u0000");
-            const slice = slices.get(key) ?? { senders: new Set<string>(), subject: b.subject };
+            // The slice is what b actually files: its subject words, less its own exceptions, which stay here.
+            const key = [b.subject.join("\u0000"), b.except.join("\u0000")].join("\u0001");
+            const slice = slices.get(key) ?? { senders: new Set<string>(), subject: b.subject, except: b.except };
             for (const t of shared) slice.senders.add(t);
             slices.set(key, slice);
           }
@@ -300,11 +304,11 @@ export function compileRoutes(policy: PolicyConfig): { routes: CompiledRoute[]; 
         }
       }
     }
-    const excludeSlices = [...slices.values()].map((s) => ({ senders: [...s.senders], subject: s.subject }));
+    const excludeSlices = [...slices.values()].map((s) => ({ senders: [...s.senders], subject: s.subject, except: s.except }));
     const negated = [
       a.except.length ? `subject:(${formatTerms(a.except)})` : null,
       excludeSenders.size ? `from:(${formatSenders([...excludeSenders])})` : null,
-      ...excludeSlices.map((s) => `(from:(${formatSenders(s.senders)}) subject:(${formatTerms(s.subject)}))`),
+      ...excludeSlices.map((s) => `(from:(${formatSenders(s.senders)}) subject:(${formatTerms(s.subject)})${s.except.length ? ` -subject:(${formatTerms(s.except)})` : ""})`),
     ].filter((p): p is string => Boolean(p));
 
     const cat = a.route.category;
@@ -328,6 +332,9 @@ export function routeLabelNames(routes: CompiledRoute[]): string[] {
   return [...new Set(routes.flatMap((r) => r.labels))].sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b));
 }
 
+const inSlice = (s: CompiledRoute["excludeSlices"][number], f: ReturnType<typeof parseFrom>, subject: string) =>
+  s.senders.some((t) => senderMatches(t, f)) && s.subject.some((t) => subjectHas(t, subject)) && !s.except.some((t) => subjectHas(t, subject));
+
 /** Does this compiled route claim a message with this From header and subject? Mirrors the Gmail filter. */
 export function routeClaims(r: CompiledRoute, from: string, subject: string): boolean {
   const f = parseFrom(from);
@@ -336,21 +343,34 @@ export function routeClaims(r: CompiledRoute, from: string, subject: string): bo
   if (!r.senders.length && !r.subject.length) return false;
   if (r.except.some((t) => subjectHas(t, subject))) return false;
   if (r.excludeSenders.some((t) => senderMatches(t, f))) return false;
-  if (r.excludeSlices.some((s) => s.senders.some((t) => senderMatches(t, f)) && s.subject.some((t) => subjectHas(t, subject)))) return false;
+  if (r.excludeSlices.some((s) => inSlice(s, f, subject))) return false;
   return true;
 }
 
 /**
- * Does this route name the sender at all, ignoring its subject qualifier? True unless the route explicitly gives the
- * message up (a narrower sender filed elsewhere, or a slice another category carved out). Reconcile keeps a label
- * when its own route names the sender: a qualifier that merely failed to match is a heuristic, not a verdict.
+ * Reconcile's removals for one category, from what Gmail evaluated. `suspects` maps each message to the labels on it
+ * that a filter Mailroom retired could have applied. A label comes off only when no route of its own category files
+ * the message and a route of another category does; otherwise there is no evidence the old filter was wrong. When a
+ * subject-qualified route of its own category names the sender (`namedHere`), the label stays and is reported as
+ * ambiguous: the qualifier may simply be missing a word.
  */
-export function routeNames(r: CompiledRoute, from: string, subject: string): boolean {
-  const f = parseFrom(from);
-  if (!r.senders.some((t) => senderMatches(t, f))) return false;
-  if (r.excludeSenders.some((t) => senderMatches(t, f))) return false;
-  if (r.excludeSlices.some((s) => s.senders.some((t) => senderMatches(t, f)) && s.subject.some((t) => subjectHas(t, subject)))) return false;
-  return true;
+export function planRemovals(suspects: Map<string, Set<string>>, filedHere: Set<string>, filedElsewhere: Set<string>, namedHere: Set<string>): { strip: Map<string, string[]>; ambiguous: Map<string, string[]> } {
+  const strip = new Map<string, string[]>();
+  const ambiguous = new Map<string, string[]>();
+  for (const [id, labels] of suspects) {
+    if (!labels.size || filedHere.has(id) || !filedElsewhere.has(id)) continue;
+    (namedHere.has(id) ? ambiguous : strip).set(id, [...labels].sort());
+  }
+  return { strip, ambiguous };
+}
+
+/**
+ * The Gmail search for the mail a route names by sender: everything it would claim if it had no subject qualifier.
+ * Its exceptions, narrower senders filed elsewhere, and slices other categories carved out stay excluded.
+ */
+export function namesQuery(r: CompiledRoute): string {
+  if (!r.criteria.from) return "";
+  return [`from:(${r.criteria.from})`, r.criteria.negatedQuery ? `-(${r.criteria.negatedQuery})` : ""].filter(Boolean).join(" ");
 }
 
 /** The Gmail search that finds what a compiled route claims. */

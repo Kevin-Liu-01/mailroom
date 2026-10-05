@@ -57,7 +57,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
             <RunBatchMessages runId={run.id} batchId={b.id} total={b.messageIds.length} />
             {run.mode === "apply" ? <RunBatchAudit runId={run.id} batchId={b.id} total={b.messageIds.length} kind={b.addLabelIds.includes("TRASH") ? "trash" : b.removeLabelIds.includes("INBOX") && !b.addLabelIds.length ? "archive" : "label"} /> : null}
           </section>
-        )) : <p className="card m-0 text-sm text-muted">{run.mode === "dry-run" ? "Previews send nothing to Gmail." : "No changes were needed."}</p>}
+        )) : <p className="card m-0 text-sm text-muted">{run.mode === "dry-run" ? "Previews send nothing to Gmail." : filterChanges ? "No email was relabeled. This run changed Gmail filters only." : "No changes were needed."}</p>}
       </div>
       {run.summary?.filters && (run.summary.filters.created.length || run.summary.filters.deleted.length) ? (
         <div className="card space-y-3">

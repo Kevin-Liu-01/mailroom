@@ -8,7 +8,7 @@ import { num } from "@/lib/format";
 type Item = { id: string; labels: string[]; senders: string; reason?: string };
 type Status = { manage: boolean; managed: number; wanted: number; toCreate: number; toRemove: number; adoptable: Item[]; kept: Item[]; conflicts: { sender: string }[]; error?: string };
 type Sampled = { label: string; messages: number; samples?: { from: string; subject: string }[] };
-type Reconcile = { runId: string | null; days: number; added: { label: string; messages: number }[]; removed: Sampled[]; ambiguous?: Sampled[]; error?: string };
+type Reconcile = { runId: string | null; days: number; added: { label: string; messages: number }[]; removed: (Sampled & { to?: { route: string; messages: number }[] })[]; ambiguous?: Sampled[]; error?: string };
 
 const preview = (s: string) => {
   const parts = s.split(/\s+OR\s+/i);
@@ -102,11 +102,11 @@ export function FiltersCard({ refreshKey, onPolicyChanged }: { refreshKey: numbe
 
       <div className="space-y-3 border-t border-line pt-4">
         <p className="m-0 text-[14px] font-semibold">File existing mail</p>
-        <p className="m-0 text-[13px] text-muted">Filters only see new mail. This files recent mail the way your routes would today: missing labels go on, and a category label comes off when another category&apos;s route claims the message. Mail Jev sorted is never touched, and nothing older than a category&apos;s trash age is newly filed into it.</p>
+        <p className="m-0 text-[13px] text-muted">Filters only see new mail. This files recent mail the way your routes would today. Missing labels go on. A label comes off only where a filter Mailroom replaced could have put it and your routes now file the message elsewhere, so labels you or Jev applied stay. Nothing older than a category&apos;s trash age is newly filed into it.</p>
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2 text-[13.5px]">Last
             <select className="input w-auto py-1 text-[13.5px]" style={{ minHeight: 34 }} value={days} onChange={(e) => { setDays(Number(e.target.value)); setPlan(null); }}>
-              {[30, 90, 180].map((d) => <option key={d} value={d}>{d} days</option>)}
+              {[30, 90, 180, 365].map((d) => <option key={d} value={d}>{d} days</option>)}
             </select>
           </label>
           <button type="button" className="btn btn-sm" disabled={busy !== null} onClick={() => reconcile(false)}>{busy === "preview" ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : null} Preview</button>
@@ -116,7 +116,17 @@ export function FiltersCard({ refreshKey, onPolicyChanged }: { refreshKey: numbe
           planTotal ? (
             <div className="grid gap-3 text-[13px] sm:grid-cols-2">
               <div><p className="m-0 mb-1 text-muted">Labels to add</p><ul className="m-0 list-none space-y-0.5 p-0 font-mono text-[12.5px]">{plan.added.map((a) => <li key={a.label}>+ {a.label} <span className="text-muted">· {num(a.messages)}</span></li>)}{plan.added.length ? null : <li className="text-muted">none</li>}</ul></div>
-              <div><p className="m-0 mb-1 text-muted">Labels to remove</p><ul className="m-0 list-none space-y-0.5 p-0 font-mono text-[12.5px]">{plan.removed.map((a) => <li key={a.label}>− {a.label} <span className="text-muted">· {num(a.messages)}</span>{a.samples?.length ? <span className="block truncate font-sans text-[12px] text-muted" title={a.samples.map((s) => `${s.from}: ${s.subject}`).join("\n")}>e.g. {a.samples.map((s) => s.from).join(", ")}</span> : null}</li>)}{plan.removed.length ? null : <li className="text-muted">none</li>}</ul></div>
+              <div><p className="m-0 mb-1 text-muted">Labels to remove</p><ul className="m-0 list-none space-y-0.5 p-0 font-mono text-[12.5px]">{plan.removed.map((a) => (
+                <li key={a.label}>− {a.label} <span className="text-muted">· {num(a.messages)}</span>
+                  {a.samples?.length ? <span className="block truncate font-sans text-[12px] text-muted" title={a.samples.map((s) => `${s.from}: ${s.subject}`).join("\n")}>e.g. {a.samples.map((s) => s.from).join(", ")}</span> : null}
+                  {a.to?.length ? (
+                    <details className="font-sans text-[12px] text-muted">
+                      <summary className="cursor-pointer">Where it goes now</summary>
+                      <ul className="m-0 mt-1 list-none space-y-0.5 p-0 text-[12px]">{a.to.map((x) => <li key={x.route} className="truncate" title={x.route}><span className="num">{num(x.messages)}</span> · {x.route}</li>)}</ul>
+                    </details>
+                  ) : null}
+                </li>
+              ))}{plan.removed.length ? null : <li className="text-muted">none</li>}</ul></div>
             </div>
           ) : <p className="m-0 text-[13px] text-muted">The last {plan.days} days already match your routes.</p>
         ) : null}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultPolicy, normalizePolicy, parsePolicy, type PolicyConfig } from "@/lib/policy/schema";
 import {
-  BUILTIN_ROUTES, compileRoutes, isRetired, moreSpecific, overlap, parseFrom, planAdoption, routeClaims, routeLabels, routeNames,
+  BUILTIN_ROUTES, compileRoutes, isRetired, moreSpecific, overlap, parseFrom, namesQuery, planAdoption, planRemovals, routeClaims, routeLabels,
   senderMatches, senderTokens, splitTerms, subjectHas, type Route,
 } from "@/lib/policy/routes";
 import { buildFilters } from "@/lib/policy/rules";
@@ -153,10 +153,9 @@ describe("compiling routes", () => {
     const mine = compileRoutes(p).routes.find((r) => r.sub === "DoorDash")!;
     // A delivery notice the qualifier misses is still named by the receipts route: reconcile keeps its label.
     expect(routeClaims(mine, "DoorDash <no-reply@doordash.com>", "Details of your no-contact delivery from Target")).toBe(false);
-    expect(routeNames(mine, "DoorDash <no-reply@doordash.com>", "Details of your no-contact delivery from Target")).toBe(true);
-    // An invoice the dev route carves out is given up: reconcile may move it to Receipts.
-    const gh = find(defaultPolicy(), "dev-github");
-    expect(routeNames(gh, "GitHub <noreply@github.com>", "[GitHub] Payment receipt for Kevin")).toBe(false);
+    expect(namesQuery(mine)).toBe("from:(no-reply@doordash.com)");
+    // An invoice the dev route carves out is given up: its name search excludes the slice Receipts took.
+    expect(namesQuery(find(defaultPolicy(), "dev-github"))).toMatch(/^from:\(.+\) -\(.*subject:\(.*invoice/);
   });
 
   it("lets your routes beat the built-ins on the same sender", () => {
@@ -236,5 +235,63 @@ describe("policy schema", () => {
     expect(() => parsePolicy({ version: 1, filing: { routes: [{ category: "work" }] } })).toThrow();
     expect(() => parsePolicy({ version: 1, filing: { routes: [{ category: "work", sub: "a/b", from: "acme.com" }] } })).toThrow();
     expect(parsePolicy({ version: 1, filing: { routes: [{ category: "work", sub: "Acme", from: "acme.com" }] } }).filing.routes).toHaveLength(1);
+  });
+});
+
+describe("filter criteria as a search", () => {
+  it("renders what a filter matches, negations included", async () => {
+    const { criteriaQuery } = await import("@/lib/engine/filters");
+    expect(criteriaQuery({ from: "uber.com OR lyft.com", subject: "receipt OR trip" })).toBe("from:(uber.com OR lyft.com) subject:(receipt OR trip)");
+    expect(criteriaQuery({ from: "linkedin.com", negatedQuery: "subject:(invoice)" })).toBe("from:(linkedin.com) -(subject:(invoice))");
+    expect(criteriaQuery({ query: "list:(news.example.com)", hasAttachment: true })).toBe("(list:(news.example.com))");
+    expect(criteriaQuery({ from: "  ", size: 100 })).toBe("");
+  });
+});
+
+describe("reconcile removal", () => {
+  const S = "Label_social_other", R = "Label_receipts";
+  const suspects = new Map([["game-promo", new Set([S])], ["reddit", new Set([S])], ["unknown", new Set([S])], ["uber-promo", new Set([R])], ["nothing", new Set<string>()]]);
+  const plan = planRemovals(suspects, new Set(["reddit"]), new Set(["game-promo", "reddit", "uber-promo", "nothing"]), new Set(["uber-promo"]));
+
+  it("takes off an old filter's label where another category files the mail now", () => {
+    expect(plan.strip.get("game-promo")).toEqual([S]);
+  });
+  it("keeps the label while its own category still files the mail, or no other category does", () => {
+    expect(plan.strip.has("reddit")).toBe(false);
+    expect(plan.strip.has("unknown")).toBe(false);
+    expect(plan.strip.has("nothing")).toBe(false);
+  });
+  it("keeps, and flags, mail its own subject-qualified route names by sender", () => {
+    expect(plan.strip.has("uber-promo")).toBe(false);
+    expect(plan.ambiguous.get("uber-promo")).toEqual([R]);
+  });
+  it("searches for what a route names by sender: its senders and exclusions, not its subject words", () => {
+    const policy = withRoutes([{ category: "receipts", sub: "Uber", from: "uber.com", subject: "trip OR receipt", except: "promo" }, { category: "marketing", from: "o.uber.com" }]);
+    const r = compileRoutes(policy).routes.find((x) => x.sub === "Uber")!;
+    expect(namesQuery(r)).toBe("from:(uber.com) -(subject:(promo))");
+    expect(namesQuery(find(policy, "receipts-billing"))).toContain("from:(");
+    expect(namesQuery(find(policy, "events-invitations"))).toBe("");
+  });
+});
+
+describe("promotions that mention an order", () => {
+  const policy = withRoutes([{ category: "marketing", from: "uber.com OR doordash.com" }]);
+  const claims = (from: string, subject: string) => compileRoutes(policy).routes.filter((r) => routeClaims(r, from, subject)).map((r) => r.category);
+  it("files a promo that names an order as marketing, not a receipt", () => {
+    expect(claims("Uber Eats <ubereats@uber.com>", "Get 40% off your next alcohol order")).toEqual(["marketing"]);
+    expect(claims("DoorDash <no-reply@doordash.com>", "You'll love 30% off your first grocery order")).toEqual(["marketing"]);
+  });
+  it("still files the real receipts as receipts", () => {
+    expect(claims("DoorDash <no-reply@doordash.com>", "Order Confirmation for Kevin from Target")).toEqual(["receipts"]);
+    expect(claims("DoorDash <no-reply@doordash.com>", "Details of your no-contact delivery from Target")).toEqual(["receipts"]);
+    expect(claims("Uber Receipts <noreply@uber.com>", "[Personal] Your Saturday evening trip with Uber")).toEqual(["receipts"]);
+  });
+  it("gives the exception back to the unqualified route in the Gmail filter too", () => {
+    const m = compileRoutes(policy).routes.find((r) => r.category === "marketing" && r.origin !== "builtin")!;
+    expect(m.criteria.negatedQuery).toContain('-subject:("your next" OR "your first"');
+    expect(m.excludeSlices.find((s) => s.senders.includes("uber.com"))?.except).toContain("your next");
+  });
+  it("does not count a route as naming mail its own exceptions give up", () => {
+    expect(namesQuery(find(policy, "receipts"))).toContain('subject:("your next" OR "your first"');
   });
 });

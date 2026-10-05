@@ -35,7 +35,8 @@ resolves that when it compiles the filters, by three rules:
 1. **A more specific sender wins.** If `o.delta.com` is filed as Marketing, the `delta.com` Travel route excludes it,
    so Delta's promos stop landing in Travel while boarding passes still do.
 2. **A subject-qualified route keeps its slice.** Uber receipts filed as Receipts are excluded from an unqualified
-   `uber.com` Marketing route; the rest of Uber's mail stays Marketing.
+   `uber.com` Marketing route; the rest of Uber's mail stays Marketing. A route's exceptions go back with it: the
+   built-in Receipts route skips promo phrasing such as "your next order", so "40% off your next order" stays Marketing.
 3. **Your routes beat the built-ins.** File `delta.com` as Marketing and the built-in Travel route drops it.
 
 Anything left, the same sender in two of your own routes with nothing to tell them apart, is shown as a conflict on the
@@ -45,8 +46,8 @@ express (forwarding, never-spam, Gmail tabs, labels outside the categories) are 
 reconcile is a run with a receipt, and Undo puts the filters, the labels, and the policy back.
 
 Filters only see new mail. **File existing mail** on the policy page previews, then applies, the routes to recent
-mail: missing labels go on, and a category label comes off a message that another category's route now claims. Mail
-Jev labeled is never touched.
+mail. Missing labels go on. A label comes off only where a filter Mailroom replaced could have put it and today's
+routes file the message in another category, so labels you, Jev, or an earlier cleanup applied stay put.
 
 ## Safety properties
 

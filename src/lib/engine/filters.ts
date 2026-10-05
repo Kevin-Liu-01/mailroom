@@ -51,6 +51,18 @@ export function planSync(wanted: WantedFilter[], existing: GmailFilter[], manage
   return { keep, create, remove };
 }
 
+/**
+ * The Gmail search that finds what a filter matches. Only the keys Gmail search can express: a filter that also limits
+ * by size or attachment yields its broader search, so callers must still check each hit.
+ */
+export function criteriaQuery(c: GmailFilterCriteria | Record<string, unknown>): string {
+  const v = (k: string) => { const x = (c as Record<string, unknown>)[k]; return typeof x === "string" && x.trim() ? x.trim() : ""; };
+  return [
+    v("from") && `from:(${v("from")})`, v("to") && `to:(${v("to")})`, v("subject") && `subject:(${v("subject")})`,
+    v("query") && `(${v("query")})`, v("negatedQuery") && `-(${v("negatedQuery")})`,
+  ].filter(Boolean).join(" ");
+}
+
 const record = (f: GmailFilter, managed: boolean, name?: string): FilterRecord => ({ id: f.id, criteria: { ...f.criteria }, action: { ...f.action }, managed, name });
 
 /**
