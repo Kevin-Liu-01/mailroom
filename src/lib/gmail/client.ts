@@ -18,6 +18,10 @@ export type GmailThreadMeta = { id: string; messages: GmailThreadMessage[] };
 export class GmailAuthError extends Error {}
 export class GmailRateLimit extends Error {}
 
+export type GmailFilterCriteria = { from?: string; to?: string; subject?: string; query?: string; negatedQuery?: string; hasAttachment?: boolean; size?: number; sizeComparison?: string; excludeChats?: boolean };
+export type GmailFilterAction = { addLabelIds?: string[]; removeLabelIds?: string[]; forward?: string };
+export type GmailFilter = { id: string; criteria: GmailFilterCriteria; action: GmailFilterAction };
+
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
@@ -50,13 +54,16 @@ export class GmailClient {
       headers: { Authorization: `Bearer ${this.accessToken}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
     });
     if (res.status === 401) throw new GmailAuthError("Gmail rejected the access token");
-    if ((res.status === 429 || res.status >= 500) && attempt < 5) {
+    // Gmail signals per-user quota as 403 rateLimitExceeded / userRateLimitExceeded, not only as 429.
+    const body = res.status === 403 ? await res.text() : "";
+    const rateLimited = res.status === 429 || (res.status === 403 && /rateLimitExceeded|userRateLimitExceeded|Quota exceeded/i.test(body));
+    if ((rateLimited || res.status >= 500) && attempt < 6) {
       const retryAfter = Number(res.headers.get("retry-after")) || 0;
-      await new Promise((r) => setTimeout(r, Math.max(retryAfter * 1000, 500 * 2 ** attempt)));
+      await new Promise((r) => setTimeout(r, Math.max(retryAfter * 1000, 700 * 2 ** attempt + Math.random() * 300)));
       return this.call<T>(path, init, attempt + 1);
     }
-    if (res.status === 429) throw new GmailRateLimit("Gmail rate limit");
-    if (!res.ok) throw new Error(`Gmail ${init.method ?? "GET"} ${path} failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
+    if (rateLimited) throw new GmailRateLimit("Gmail rate limit: try again in a minute");
+    if (!res.ok) throw new Error(`Gmail ${init.method ?? "GET"} ${path} failed: ${res.status} ${(body || (await res.text())).slice(0, 300)}`);
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
   }
@@ -147,17 +154,23 @@ export class GmailClient {
     }
   }
 
-  async listFilters(): Promise<{ id: string; criteria: Record<string, string>; action: { addLabelIds?: string[]; removeLabelIds?: string[] } }[]> {
-    const r = await this.call<{ filter?: { id: string; criteria: Record<string, string>; action: { addLabelIds?: string[]; removeLabelIds?: string[] } }[] }>("/settings/filters");
+  async listFilters(): Promise<GmailFilter[]> {
+    const r = await this.call<{ filter?: GmailFilter[] }>("/settings/filters");
     return r.filter ?? [];
   }
 
-  async createFilter(criteria: Record<string, string>, action: { addLabelIds?: string[]; removeLabelIds?: string[] }): Promise<void> {
-    await this.call("/settings/filters", { method: "POST", body: JSON.stringify({ criteria, action }) });
+  /** Create a filter and return it with its id. */
+  async createFilter(criteria: GmailFilterCriteria, action: GmailFilterAction): Promise<GmailFilter> {
+    return this.call<GmailFilter>("/settings/filters", { method: "POST", body: JSON.stringify({ criteria, action }) });
   }
 
+  /** Delete a filter. A filter that is already gone counts as deleted. */
   async deleteFilter(id: string): Promise<void> {
-    await this.call(`/settings/filters/${encodeURIComponent(id)}`, { method: "DELETE" });
+    try {
+      await this.call(`/settings/filters/${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch (err) {
+      if (!(err instanceof Error && /\b404\b/.test(err.message))) throw err;
+    }
   }
 }
 

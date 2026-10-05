@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   integer,
   jsonb,
   pgTable,
@@ -8,7 +9,14 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
-import type { PolicyConfig } from "@/lib/policy/schema";
+import { normalizePolicy, type PolicyConfig } from "@/lib/policy/schema";
+
+/** jsonb that always reads back as a current, complete policy, whatever schema version wrote it. */
+const policyJson = customType<{ data: PolicyConfig; driverData: unknown }>({
+  dataType: () => "jsonb",
+  toDriver: (value) => JSON.stringify(value),
+  fromDriver: (value) => normalizePolicy(typeof value === "string" ? JSON.parse(value) : value),
+});
 
 // ---- Auth.js tables (Drizzle adapter shape) ----
 export const users = pgTable("users", {
@@ -63,10 +71,12 @@ export type MailboxStatus = "active" | "paused" | "needs_reauth";
 export const mailboxes = pgTable("mailboxes", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
-  policy: jsonb("policy").$type<PolicyConfig>().notNull(),
+  policy: policyJson("policy").notNull(),
   scheduleEnabled: boolean("schedule_enabled").default(true).notNull(),
   status: text("status").$type<MailboxStatus>().default("active").notNull(),
   labelsReady: boolean("labels_ready").default(false).notNull(),
+  // Ids of the Gmail filters Mailroom created and owns; anything else in Gmail is the user's and is left alone.
+  managedFilters: jsonb("managed_filters").$type<string[]>().default([]).notNull(),
   lastRunAt: timestamp("last_run_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
@@ -97,11 +107,18 @@ export type AiUsage = {
   model?: string;
 };
 
+/** A Gmail filter as a run created or removed it, enough to put it back. */
+export type FilterRecord = { id: string; criteria: Record<string, unknown>; action: { addLabelIds?: string[]; removeLabelIds?: string[]; forward?: string }; managed: boolean; name?: string };
+
 export type RunSummary = {
   rules: RuleResult[];
   ai?: AiUsage & { labeled: number; archived: number; flaggedAction: number };
   totalApplied: number;
   durationMs: number;
+  /** Gmail filters this run created and removed. Undo removes the first and recreates the second. */
+  filters?: { created: FilterRecord[]; deleted: FilterRecord[] };
+  /** The policy before this run changed it (adopting filters does). Undo restores it. */
+  policyBefore?: PolicyConfig;
 };
 
 export const runs = pgTable("runs", {

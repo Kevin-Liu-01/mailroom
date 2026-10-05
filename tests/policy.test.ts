@@ -5,7 +5,7 @@ import { buildFilters, buildRules, resolveRule } from "@/lib/policy/rules";
 describe("policy defaults", () => {
   it("parses an empty override into the opinionated defaults", () => {
     const p = defaultPolicy();
-    expect(p.categories.skipInbox).toEqual(["dev", "social", "receipts"]);
+    expect(p.categories.skipInbox).toEqual(["dev", "receipts"]);
     expect(p.aging.trashMarketingAfterDays).toBeNull();
     expect(p.ai.enabled).toBe(true);
   });

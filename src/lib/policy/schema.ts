@@ -31,6 +31,18 @@ export const AI_LABEL = "Mailroom/AI Sorted";
 const day = z.number().int().min(1).max(3650);
 const nullableDay = day.nullable();
 
+const FILE_CATEGORY_IDS = CATEGORY_IDS.filter((c) => c !== "other") as [Exclude<CategoryId, "other">, ...Exclude<CategoryId, "other">[]];
+
+/** One route: mail from these senders (optionally only with, or except, these subject words) files into a category. */
+export const RouteSchema = z.object({
+  category: z.enum(FILE_CATEGORY_IDS),
+  sub: z.string().trim().min(1).max(40).regex(/^[^/"]+$/, "A sub-label cannot contain / or quotes").optional(),
+  from: z.string().trim().min(3).max(1800).optional(),
+  subject: z.string().trim().min(1).max(1200).optional(),
+  except: z.string().trim().min(1).max(600).optional(),
+  star: z.boolean().optional(),
+}).refine((r) => Boolean(r.from || r.subject), { message: "A route needs senders or subject words" });
+
 export const PolicySchema = z.object({
   version: z.literal(1),
   categories: z.object({
@@ -68,6 +80,12 @@ export const PolicySchema = z.object({
     // Per-sender aging: mail from this domain older than N days goes to Trash.
     trashAfterDays: z.record(z.string().min(3), day).default({}),
   }).prefault({}),
+  filing: z.object({
+    // Your own routes. They add to the built-in ones and win over them where both name a sender.
+    routes: z.array(RouteSchema).max(150).default([]),
+    // Built-in routes you have turned off, by id.
+    builtinsOff: z.array(z.string().min(1).max(60)).max(60).default([]),
+  }).prefault({}),
   ai: z.object({
     enabled: z.boolean().default(true),
     // Only Primary-tab mail with no taxonomy label is judged; deterministic rules handle the rest for free.
@@ -97,4 +115,21 @@ export function defaultPolicy(overrides: Partial<PolicyConfig> = {}): PolicyConf
 
 export function parsePolicy(input: unknown): PolicyConfig {
   return PolicySchema.parse(input);
+}
+
+/**
+ * A stored policy, brought up to the current schema: sections added since it was saved get their defaults. If it no
+ * longer validates, each section falls back to defaults on its own, so one bad field never wipes the rest.
+ */
+export function normalizePolicy(input: unknown): PolicyConfig {
+  const parsed = PolicySchema.safeParse(input);
+  if (parsed.success) return parsed.data;
+  const base = defaultPolicy();
+  const raw = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  const section = <K extends keyof PolicyConfig>(key: K): PolicyConfig[K] => {
+    const merged = { ...(base[key] as object), ...((raw[key] as object | undefined) ?? {}) };
+    const ok = PolicySchema.shape[key].safeParse(merged);
+    return (ok.success ? ok.data : base[key]) as PolicyConfig[K];
+  };
+  return { version: 1, categories: section("categories"), aging: section("aging"), senders: section("senders"), filing: section("filing"), ai: section("ai"), schedule: section("schedule") };
 }

@@ -1,7 +1,9 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CATEGORIES, type CategoryId, type PolicyConfig } from "@/lib/policy/schema";
 import type { Rule } from "@/lib/policy/rules";
+import { RoutesEditor } from "@/components/RoutesEditor";
+import { FiltersCard } from "@/components/FiltersCard";
 
 type Api = { policy: PolicyConfig; scheduleEnabled: boolean; rules: Rule[]; error?: string };
 const cats = CATEGORIES.filter((c) => c.label) as { id: CategoryId; label: string; description: string }[];
@@ -74,19 +76,28 @@ export function PolicyEditor() {
   const [msg, setMsg] = useState<string | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestions, setSuggestions] = useState<{ domain: string; count: number }[] | null>(null);
+  // Bumped when the policy is reloaded from the server (after adopting filters), so editors remount with fresh rows.
+  const [version, setVersion] = useState(0);
+  const [savedAt, setSavedAt] = useState(0);
 
+  const apply = useCallback((d: Api) => { setData(d); setPolicy(d.policy); setVersion((v) => v + 1); }, []);
+  const load = useCallback(() => fetch("/api/policy").then((r) => r.json()).then(apply), [apply]);
   useEffect(() => {
-    fetch("/api/policy").then((r) => r.json()).then((d: Api) => { setData(d); setPolicy(d.policy); });
-  }, []);
+    let live = true;
+    fetch("/api/policy").then((r) => r.json()).then((d: Api) => { if (live) apply(d); });
+    return () => { live = false; };
+  }, [apply]);
 
   const dirty = useMemo(() => data && policy && JSON.stringify(data.policy) !== JSON.stringify(policy), [data, policy]);
 
   async function save() {
     if (!policy) return;
     setSaving(true); setMsg(null);
-    const res = await fetch("/api/policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ policy }) });
+    // A route left blank is a row being typed, not a rule: drop it rather than fail the save.
+    const clean = { ...policy, filing: { ...policy.filing, routes: policy.filing.routes.filter((r) => r.from || r.subject) } };
+    const res = await fetch("/api/policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ policy: clean }) });
     const d = (await res.json()) as Api;
-    if (res.ok) { setData({ ...d, scheduleEnabled: data?.scheduleEnabled ?? true }); setPolicy(d.policy); setMsg("Saved. The next run uses this policy."); }
+    if (res.ok) { setData({ ...d, scheduleEnabled: data?.scheduleEnabled ?? true }); setPolicy(d.policy); setSavedAt(Date.now()); setMsg("Saved. The next run uses this policy; sync the filters below to apply routes now."); }
     else setMsg(d.error ?? "Could not save");
     setSaving(false);
   }
@@ -110,6 +121,12 @@ export function PolicyEditor() {
         <CategoryPicker label="Never important" value={policy.categories.neverImportant} onChange={(v) => set({ categories: { ...policy.categories, neverImportant: v } })} />
         <CategoryPicker label="Protected from trash rules" value={policy.categories.protected} onChange={(v) => set({ categories: { ...policy.categories, protected: v } })} />
       </Section>
+
+      <Section title="Filing" hint="Routes say where mail from a sender goes. Each one becomes a Gmail filter, so new mail is filed the moment it lands.">
+        <RoutesEditor key={version} policy={policy} onChange={(filing) => set({ filing })} />
+      </Section>
+
+      <FiltersCard refreshKey={savedAt} onPolicyChanged={load} />
 
       <Section title="Aging" hint="Days before the daily run archives, trashes (30-day recovery), or marks read. Uncheck to turn a trash rule off.">
         <div className="grid gap-2 sm:grid-cols-2">

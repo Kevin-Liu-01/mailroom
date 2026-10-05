@@ -4,11 +4,13 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { GmailAuthError, GmailClient, mapLimit, refreshAccessToken, type GmailMessageMeta } from "@/lib/gmail/client";
 import { ACTION_LABEL, AI_LABEL, LABEL_BY_CATEGORY, type CategoryId, type PolicyConfig } from "@/lib/policy/schema";
 import { ALL_TAXONOMY_LABELS, buildFilters, buildRules, resolveRule } from "@/lib/policy/rules";
+import { compileRoutes, routeLabelNames } from "@/lib/policy/routes";
+import { applySync, planSync, toWanted, undoFilterChanges } from "./filters";
 import { estimateCostUsd, triageMessage, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
 import { resolveKey, withKey } from "@/lib/ai/client";
 import { expandLabelQuery } from "@/lib/gmail/labels";
 import { summarizeThread } from "@/lib/search/threads";
-import type { AiUsage, Judgment, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
+import type { AiUsage, FilterRecord, Judgment, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
 
 const { accounts, aiJudgments, mailboxes, runBatches, runs } = schema;
 
@@ -33,37 +35,22 @@ export async function gmailFor(userId: string): Promise<{ gmail: GmailClient; em
 
 type BatchRecord = { ruleId: string; messageIds: string[]; addLabelIds: string[]; removeLabelIds: string[]; restoreLabelIds: string[] };
 
-function sameFilter(existing: { criteria: Record<string, string> }, spec: { criteria: Record<string, string | undefined> }): boolean {
-  return (existing.criteria.from ?? "") === (spec.criteria.from ?? "") && (existing.criteria.subject ?? "") === (spec.criteria.subject ?? "") && (existing.criteria.query ?? "") === (spec.criteria.query ?? "");
-}
-
-const sameSet = (a: string[] = [], b: string[] = []) => a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i]);
-
 /**
- * Create the taxonomy labels and, in apply mode, the standing Gmail filters the policy wants. A filter whose criteria
- * match but whose action no longer does (a category moved on or off the skip-inbox list, say) is deleted and recreated,
- * so a policy change takes effect at the next apply instead of leaving a stale filter firing forever.
+ * Create the taxonomy labels and every label the routes file into, then (in apply mode) bring Gmail's filters in line
+ * with the policy's routes. Only filters Mailroom owns are created or removed; a preview just counts the changes.
  */
-async function ensureSetup(gmail: GmailClient, policy: PolicyConfig, mode: RunMode): Promise<{ labels: Record<string, string>; filtersCreated: number; filtersReplaced: number }> {
-  const labels = await gmail.ensureLabels([...ALL_TAXONOMY_LABELS, ACTION_LABEL, AI_LABEL]);
-  let filtersCreated = 0, filtersReplaced = 0;
-  if (mode === "apply") {
-    const existing = await gmail.listFilters();
-    for (const spec of buildFilters(policy)) {
-      const add = spec.action.addLabelNames.map((n) => labels[n] ?? n);
-      const remove = spec.action.removeLabelIds;
-      const matches = existing.filter((f) => sameFilter(f, spec));
-      if (matches.some((f) => sameSet(f.action.addLabelIds, add) && sameSet(f.action.removeLabelIds, remove))) continue;
-      for (const stale of matches) { await gmail.deleteFilter(stale.id); filtersReplaced++; }
-      const criteria: Record<string, string> = {};
-      if (spec.criteria.from) criteria.from = spec.criteria.from;
-      if (spec.criteria.subject) criteria.subject = spec.criteria.subject;
-      if (spec.criteria.query) criteria.query = spec.criteria.query;
-      await gmail.createFilter(criteria, { addLabelIds: add, removeLabelIds: remove });
-      if (!matches.length) filtersCreated++;
-    }
-  }
-  return { labels, filtersCreated, filtersReplaced };
+export async function ensureSetup(gmail: GmailClient, policy: PolicyConfig, mode: RunMode, managedIds: string[]): Promise<{
+  labels: Record<string, string>; managed: string[]; filters: { created: FilterRecord[]; deleted: FilterRecord[] }; planned: { create: number; remove: number };
+}> {
+  const routeLabels = routeLabelNames(compileRoutes(policy).routes);
+  const labels = await gmail.ensureLabels([...ALL_TAXONOMY_LABELS, ACTION_LABEL, AI_LABEL, ...routeLabels]);
+  const managed = new Set(managedIds);
+  const wanted = buildFilters(policy).map((spec) => toWanted(spec, labels));
+  const plan = planSync(wanted, await gmail.listFilters(), managed);
+  const planned = { create: plan.create.length, remove: plan.remove.length };
+  if (mode !== "apply") return { labels, managed: managedIds, filters: { created: [], deleted: [] }, planned };
+  const res = await applySync(gmail, plan, managed);
+  return { labels, managed: res.managed, filters: { created: res.created, deleted: res.deleted }, planned };
 }
 
 export async function runMailbox(opts: { userId: string; mode: RunMode; trigger: RunTrigger }): Promise<{ runId: string; summary: RunSummary }> {
@@ -76,13 +63,21 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
   const results: RuleResult[] = [];
   const batches: BatchRecord[] = [];
   let totalApplied = 0;
+  let filterChanges: RunSummary["filters"] = { created: [], deleted: [] };
 
   try {
     const { gmail, email } = await gmailFor(userId);
-    const { labels, filtersCreated, filtersReplaced } = await ensureSetup(gmail, policy, mode);
-    if (filtersCreated) results.push({ id: "setup-filters", kind: "label", matched: filtersCreated, applied: filtersCreated });
-    if (filtersReplaced) results.push({ id: "setup-filters-replaced", kind: "label", matched: filtersReplaced, applied: filtersReplaced, skipped: "a filter's action changed with the policy, so it was recreated" });
-    if (!mailbox.labelsReady && mode === "apply") await db.update(mailboxes).set({ labelsReady: true }).where(eq(mailboxes.userId, userId));
+    const setup = await ensureSetup(gmail, policy, mode, mailbox.managedFilters);
+    filterChanges = setup.filters;
+    if (setup.planned.create || setup.planned.remove) {
+      results.push({
+        id: "sync-filters", kind: "label", matched: setup.planned.create + setup.planned.remove,
+        applied: mode === "apply" ? setup.filters.created.length + setup.filters.deleted.length : 0,
+        skipped: `${setup.planned.create} to create, ${setup.planned.remove} to remove`,
+      });
+    }
+    const labels = setup.labels;
+    if (mode === "apply") await db.update(mailboxes).set({ labelsReady: true, managedFilters: setup.managed }).where(eq(mailboxes.userId, userId));
 
     // 1. Deterministic rules: free, exact, re-runnable by hand.
     // Users who nest labels ("Receipts/Uber") keep working: every taxonomy label in a rule also matches its sublabels.
@@ -128,12 +123,14 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
       await db.insert(runBatches).values(batches.map((b) => ({ runId: run.id, ...b })));
     }
     const summary: RunSummary = { rules: results, ai, totalApplied, durationMs: Date.now() - started };
+    if (filterChanges.created.length || filterChanges.deleted.length) summary.filters = filterChanges;
     await db.update(runs).set({ status: "ok", summary, finishedAt: new Date() }).where(eq(runs.id, run.id));
     await db.update(mailboxes).set({ lastRunAt: new Date(), status: "active", updatedAt: new Date() }).where(eq(mailboxes.userId, userId));
     return { runId: run.id, summary };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const summary: RunSummary = { rules: results, totalApplied, durationMs: Date.now() - started };
+    if (filterChanges.created.length || filterChanges.deleted.length) summary.filters = filterChanges;
     await db.update(runs).set({ status: "error", error: message, summary, finishedAt: new Date() }).where(eq(runs.id, run.id));
     if (err instanceof GmailAuthError) {
       await db.update(mailboxes).set({ status: "needs_reauth", updatedAt: new Date() }).where(eq(mailboxes.userId, userId));
@@ -261,10 +258,10 @@ async function triagePrimary(ctx: {
 }
 
 /** Reverse every batch of a run: remove what it added, restore what it can safely restore. */
-export async function undoRun(userId: string, runId: string): Promise<{ batches: number; messages: number }> {
+export async function undoRun(userId: string, runId: string): Promise<{ batches: number; messages: number; filters: number }> {
   const [run] = await db.select().from(runs).where(and(eq(runs.id, runId), eq(runs.userId, userId))).limit(1);
   if (!run) throw new MailboxError("Run not found");
-  if (run.status === "undone") return { batches: 0, messages: 0 };
+  if (run.status === "undone") return { batches: 0, messages: 0, filters: 0 };
   const { gmail } = await gmailFor(userId);
   const rows = await db.select().from(runBatches).where(eq(runBatches.runId, runId));
   let messages = 0;
@@ -272,6 +269,17 @@ export async function undoRun(userId: string, runId: string): Promise<{ batches:
     await gmail.batchModify(b.messageIds, b.restoreLabelIds, b.addLabelIds);
     messages += b.messageIds.length;
   }
+  let filters = 0;
+  const changes = run.summary?.filters;
+  if (changes && (changes.created.length || changes.deleted.length)) {
+    const [mb] = await db.select({ managed: mailboxes.managedFilters }).from(mailboxes).where(eq(mailboxes.userId, userId)).limit(1);
+    const managed = await undoFilterChanges(gmail, changes, mb?.managed ?? []);
+    await db.update(mailboxes).set({ managedFilters: managed, updatedAt: new Date() }).where(eq(mailboxes.userId, userId));
+    filters = changes.created.length + changes.deleted.length;
+  }
+  if (run.summary?.policyBefore) {
+    await db.update(mailboxes).set({ policy: run.summary.policyBefore, updatedAt: new Date() }).where(eq(mailboxes.userId, userId));
+  }
   await db.update(runs).set({ status: "undone" }).where(eq(runs.id, runId));
-  return { batches: rows.length, messages };
+  return { batches: rows.length, messages, filters };
 }

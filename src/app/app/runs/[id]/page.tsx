@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Eye, Flag, ListChecks, Play, Tags, Zap } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Eye, Filter, Flag, ListChecks, Play, Tags, Zap } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth";
@@ -25,7 +25,9 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const batches = await db.select().from(schema.runBatches).where(eq(schema.runBatches.runId, id));
   // Label ids read as names when Gmail is reachable; system ids have fixed names.
   const names = new Map<string, string>(Object.entries(SYSTEM_LABELS));
-  if (batches.length) {
+  const filterChanges = run.summary?.filters && (run.summary.filters.created.length || run.summary.filters.deleted.length) ? run.summary.filters : null;
+  const undoable = run.mode === "apply" && run.status === "ok" && (batches.length > 0 || Boolean(filterChanges) || Boolean(run.summary?.policyBefore));
+  if (batches.length || filterChanges) {
     try { for (const l of await (await gmailFor(session.user.id)).gmail.listLabels()) if (l.type === "user") names.set(l.id, l.name); } catch { /* fall back to ids */ }
   }
   const labelName = (l: string) => names.get(l) ?? l;
@@ -39,7 +41,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
       {run.error ? <p className="m-0 rounded-md border border-ink p-3 text-sm">{run.error}</p> : null}
       {run.summary ? <div className="card"><SummaryView summary={run.summary} /></div> : null}
       <div className="space-y-4">
-        <CardTitle icon={Tags} action={run.mode === "apply" && run.status === "ok" && batches.length ? <UndoButton runId={run.id} /> : null}>What changed, email by email</CardTitle>
+        <CardTitle icon={Tags} action={undoable && batches.length ? <UndoButton runId={run.id} /> : null}>What changed, email by email</CardTitle>
         {batches.length ? batches.map((b) => (
           <section key={b.id} className="card space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -57,6 +59,32 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
           </section>
         )) : <p className="card m-0 text-sm text-muted">{run.mode === "dry-run" ? "Previews send nothing to Gmail." : "No changes were needed."}</p>}
       </div>
+      {run.summary?.filters && (run.summary.filters.created.length || run.summary.filters.deleted.length) ? (
+        <div className="card space-y-3">
+          <CardTitle icon={Filter} action={undoable && !batches.length ? <UndoButton runId={run.id} /> : null}>Gmail filters</CardTitle>
+          <div className="grid gap-4 text-[13px] sm:grid-cols-2">
+            {([["Created", run.summary.filters.created], ["Removed", run.summary.filters.deleted]] as const).map(([title, list]) => (
+              <div key={title}>
+                <p className="m-0 mb-1.5 text-muted">{title} · {list.length}</p>
+                <ul className="m-0 list-none space-y-1.5 p-0">
+                  {list.map((f) => {
+                    const c = f.criteria as { from?: string; subject?: string };
+                    const adds = (f.action.addLabelIds ?? []).map(labelName).filter((l) => !/^[A-Z_]+$/.test(l));
+                    return (
+                      <li key={f.id} className="min-w-0">
+                        <span className="font-medium">{adds.join(" + ") || f.name || "Filter"}</span>
+                        <span className="block truncate font-mono text-[11.5px] text-muted" title={c.from ?? c.subject}>{c.from ? `from ${c.from}` : `subject ${c.subject ?? ""}`}</span>
+                      </li>
+                    );
+                  })}
+                  {list.length ? null : <li className="text-muted">none</li>}
+                </ul>
+              </div>
+            ))}
+          </div>
+          {run.summary.policyBefore ? <p className="m-0 text-[12.5px] text-muted">This run also changed your routes. Undo restores the policy as it was.</p> : null}
+        </div>
+      ) : null}
       {run.summary?.rules.length ? (
         <div className="card space-y-2">
           <CardTitle icon={ListChecks}>Every search this run made</CardTitle>

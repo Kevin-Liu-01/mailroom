@@ -29,7 +29,15 @@ export function RunBatchMessages({ runId, batchId, total }: { runId: string; bat
     }
     setLoading(false);
   }
-  useEffect(() => { void load(0, 10); }, [runId, batchId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/runs/${runId}/batches/${batchId}?offset=0&limit=10`).then((r) => r.json()).then((json: { rows?: Row[]; error?: string }) => {
+      if (!live) return;
+      if (json.error) setError(json.error); else setRows(json.rows ?? []);
+      setLoading(false);
+    }).catch((err: unknown) => { if (live) { setError(err instanceof Error ? err.message : "Could not read these from Gmail."); setLoading(false); } });
+    return () => { live = false; };
+  }, [runId, batchId]);
 
   const remaining = total - rows.length;
   return (
