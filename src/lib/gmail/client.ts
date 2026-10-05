@@ -46,13 +46,18 @@ export async function revokeToken(token: string): Promise<void> {
 }
 
 export class GmailClient {
-  constructor(private accessToken: string) {}
+  /** `refresh` mints a new access token; long runs outlive the hour a token lasts, so a 401 refreshes once and retries. */
+  constructor(private accessToken: string, private refresh?: () => Promise<string>) {}
 
-  private async call<T>(path: string, init: RequestInit = {}, attempt = 0): Promise<T> {
+  private async call<T>(path: string, init: RequestInit = {}, attempt = 0, refreshed = false): Promise<T> {
     const res = await fetch(`${API}${path}`, {
       ...init,
       headers: { Authorization: `Bearer ${this.accessToken}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
     });
+    if (res.status === 401 && this.refresh && !refreshed) {
+      this.accessToken = await this.refresh();
+      return this.call<T>(path, init, attempt, true);
+    }
     if (res.status === 401) throw new GmailAuthError("Gmail rejected the access token");
     // Gmail signals per-user quota as 403 rateLimitExceeded / userRateLimitExceeded, not only as 429.
     const body = res.status === 403 ? await res.text() : "";
@@ -60,7 +65,7 @@ export class GmailClient {
     if ((rateLimited || res.status >= 500) && attempt < 6) {
       const retryAfter = Number(res.headers.get("retry-after")) || 0;
       await new Promise((r) => setTimeout(r, Math.max(retryAfter * 1000, 700 * 2 ** attempt + Math.random() * 300)));
-      return this.call<T>(path, init, attempt + 1);
+      return this.call<T>(path, init, attempt + 1, refreshed);
     }
     if (rateLimited) throw new GmailRateLimit("Gmail rate limit: try again in a minute");
     if (!res.ok) throw new Error(`Gmail ${init.method ?? "GET"} ${path} failed: ${res.status} ${(body || (await res.text())).slice(0, 300)}`);

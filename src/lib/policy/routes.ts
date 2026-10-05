@@ -63,7 +63,7 @@ export const BUILTIN_ROUTES: (Route & { id: string; name: string })[] = [
   {
     id: "receipts", name: "Orders, rides, and deliveries", category: "receipts",
     from: "uber.com OR ubereats.com OR lyft.com OR doordash.com OR grubhub.com OR instacart.com OR seamless.com OR postmates.com OR gopuff.com OR toasttab.com OR auto-confirm@amazon.com OR shipment-tracking@amazon.com OR order-update@amazon.com OR digital-no-reply@amazon.com OR payments-messages@amazon.com OR return@amazon.com OR ship-confirm@amazon.com OR no_reply@email.apple.com OR ebay.com OR etsy.com",
-    subject: 'receipt OR order OR ordered OR trip OR shipped OR delivered OR "out for delivery" OR arriving OR "your ride" OR invoice OR confirmation OR "payment received" OR "thank you for your purchase"',
+    subject: 'receipt OR order OR ordered OR trip OR shipped OR delivered OR "out for delivery" OR "no-contact delivery" OR arriving OR "your ride" OR invoice OR confirmation OR "payment received" OR "thank you for your purchase"',
   },
   {
     id: "receipts-billing", name: "Software invoices", category: "receipts", from: SAAS,
@@ -335,6 +335,19 @@ export function routeClaims(r: CompiledRoute, from: string, subject: string): bo
   if (r.subject.length && !r.subject.some((t) => subjectHas(t, subject))) return false;
   if (!r.senders.length && !r.subject.length) return false;
   if (r.except.some((t) => subjectHas(t, subject))) return false;
+  if (r.excludeSenders.some((t) => senderMatches(t, f))) return false;
+  if (r.excludeSlices.some((s) => s.senders.some((t) => senderMatches(t, f)) && s.subject.some((t) => subjectHas(t, subject)))) return false;
+  return true;
+}
+
+/**
+ * Does this route name the sender at all, ignoring its subject qualifier? True unless the route explicitly gives the
+ * message up (a narrower sender filed elsewhere, or a slice another category carved out). Reconcile keeps a label
+ * when its own route names the sender: a qualifier that merely failed to match is a heuristic, not a verdict.
+ */
+export function routeNames(r: CompiledRoute, from: string, subject: string): boolean {
+  const f = parseFrom(from);
+  if (!r.senders.some((t) => senderMatches(t, f))) return false;
   if (r.excludeSenders.some((t) => senderMatches(t, f))) return false;
   if (r.excludeSlices.some((s) => s.senders.some((t) => senderMatches(t, f)) && s.subject.some((t) => subjectHas(t, subject)))) return false;
   return true;

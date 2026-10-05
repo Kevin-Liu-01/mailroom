@@ -81,6 +81,8 @@ export const PolicySchema = z.object({
     trashAfterDays: z.record(z.string().min(3), day).default({}),
   }).prefault({}),
   filing: z.object({
+    // Off: routes are kept but Mailroom never creates, changes, or removes a Gmail filter.
+    manage: z.boolean().default(true),
     // Your own routes. They add to the built-in ones and win over them where both name a sender.
     routes: z.array(RouteSchema).max(150).default([]),
     // Built-in routes you have turned off, by id.

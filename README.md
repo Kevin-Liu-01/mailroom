@@ -23,8 +23,30 @@ capped at 100 users by Google. If that is not for you, clone it and run your own
 | **Rules, then Jev, then a receipt** | A policy you can read in one screen becomes Gmail searches and label changes. Jev judges only the Primary-tab mail the rules left alone, once per message, cached forever. Every change is a row in a receipt. |
 | **Ask in plain words** | "Receipts from Uber last month", "who hasn't replied to me", "unread from real people". Code finds the senders, dates, and status words; Jev picks the category, window, and intent; you get a Gmail query you can edit, and conversations ranked by the signal you asked for, with every probability shown. |
 | **Decide sender by sender** | Ninety days of mail aggregated by sender, judged once, crossed with how much of it you actually open. You click protect, keep, trash after 30 days, or trash all; it becomes a standing rule. |
+| **Filing you can read** | Routes say where mail from a sender goes: a category, an optional sub-label, optionally only for certain subject words. Each becomes a Gmail filter, so new mail is filed the moment it lands. Built-in routes cover common services; yours add to them. Already have hand-made Gmail filters? Adopt them in one click and one system owns filing from then on. |
 | **Grade what happened** | On any receipt, ask Jev whether each trashed or filed email was handled right. Disagreements come pre-selected, and one click reverses just those. |
 | **Thirteen fixed labels** | Work, Personal, Banking & Finance, Receipts, Trips & Travel, Events, Recruiting, School, Dev Notifications, Social Media, Newsletters, Marketing & Deals, Accounts & Security. Nothing custom, so search always works. |
+
+## How filing resolves overlaps
+
+Gmail applies every filter that matches, so two routes that both match a message would both label it. Mailroom
+resolves that when it compiles the filters, by three rules:
+
+1. **A more specific sender wins.** If `o.delta.com` is filed as Marketing, the `delta.com` Travel route excludes it,
+   so Delta's promos stop landing in Travel while boarding passes still do.
+2. **A subject-qualified route keeps its slice.** Uber receipts filed as Receipts are excluded from an unqualified
+   `uber.com` Marketing route; the rest of Uber's mail stays Marketing.
+3. **Your routes beat the built-ins.** File `delta.com` as Marketing and the built-in Travel route drops it.
+
+Anything left, the same sender in two of your own routes with nothing to tell them apart, is shown as a conflict on the
+policy page. Gmail lets a filter apply one user label, so a route with a sub-label becomes two filters with the same
+criteria. Mailroom tracks the filters it creates and only ever changes those; filters that do something routes cannot
+express (forwarding, never-spam, Gmail tabs, labels outside the categories) are left alone. Every sync, adoption, and
+reconcile is a run with a receipt, and Undo puts the filters, the labels, and the policy back.
+
+Filters only see new mail. **File existing mail** on the policy page previews, then applies, the routes to recent
+mail: missing labels go on, and a category label comes off a message that another category's route now claims. Mail
+Jev labeled is never touched.
 
 ## Safety properties
 
@@ -63,8 +85,8 @@ Next.js 16 (App Router, Turbopack), React 19, Auth.js v5 with Google, Drizzle on
 Tailwind v4, Vitest. Type is Camber for words and Berkeley Mono for data.
 
 ```
-src/lib/policy      the policy schema (zod), the thirteen categories, rules compiled to Gmail searches
-src/lib/engine      run.ts (rules, then triage, then receipts), senders.ts, stats.ts, actions.ts
+src/lib/policy      the policy schema (zod), the thirteen categories, rules, routes compiled to Gmail filters
+src/lib/engine      run.ts (rules, then triage, then receipts), filters.ts (sync), filing.ts (adopt, reconcile)
 src/lib/ai          client.ts (bring-your-own-key context), triage.ts, grade.ts
 src/lib/search      lexicon.ts, compile.ts (words to a Gmail query), threads.ts, rerank.ts
 src/lib/gmail       a thin Gmail REST client: metadata reads, batchModify, labels, filters
@@ -82,7 +104,8 @@ metadata, and every probability is shown in the UI rather than hidden behind a v
 ## Scripts
 
 `pnpm dev`, `pnpm build`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm db:push`, `pnpm db:studio`,
-`pnpm smoke:search` (compiles thirty questions and prints the queries), `pnpm smoke:triage`.
+`pnpm smoke:search` (compiles thirty questions and prints the queries), `pnpm smoke:triage`, `pnpm filters:audit`
+(where your Gmail filters stand against the routes: in place, to sync, adoptable, left alone, conflicts).
 `scripts/seed-preview-user.ts` creates a throwaway signed-in user so the app pages can be reviewed without Gmail; run
 it with `--remove` afterwards.
 

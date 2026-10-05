@@ -62,6 +62,10 @@ export function RoutesEditor({ policy, onChange }: { policy: PolicyConfig; onCha
 
   return (
     <div className="space-y-5">
+      <label className="flex items-start gap-2.5 text-[13.5px]">
+        <input type="checkbox" className="mt-0.5 size-4" checked={policy.filing.manage} onChange={(e) => onChange({ ...policy.filing, manage: e.target.checked })} />
+        <span><span className="font-semibold">Let Mailroom manage my Gmail filters</span><span className="block text-muted">Off keeps your routes but never creates, changes, or removes a filter. Search, trash, and Jev still work.</span></span>
+      </label>
       {compiled.conflicts.length ? (
         <div className="card space-y-1.5 border-ink p-4 text-[13.5px]">
           <p className="m-0 flex items-center gap-2 font-semibold"><AlertTriangle size={15} aria-hidden="true" /> {compiled.conflicts.length === 1 ? "One sender is" : `${compiled.conflicts.length} senders are`} filed into two categories</p>

@@ -234,7 +234,7 @@ export default async function Dashboard() {
           <span className="tile tile--sm" aria-hidden="true"><LogOut size={16} /></span>
           <div>
             <h2 className="m-0 text-[15px] font-semibold tracking-normal">Leave</h2>
-            <p className="m-0 mt-1 text-[13.5px] text-muted">Revokes the token and deletes your data. Gmail keeps its labels.</p>
+            <p className="m-0 mt-1 text-[13.5px] text-muted">Revokes the token and deletes your data. Gmail keeps its labels and filters.</p>
           </div>
         </div>
         <DisconnectButton />

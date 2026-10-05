@@ -21,14 +21,15 @@ export async function gmailFor(userId: string): Promise<{ gmail: GmailClient; em
   const [acct] = await db.select().from(accounts).where(and(eq(accounts.userId, userId), eq(accounts.provider, "google"))).limit(1);
   if (!acct?.refresh_token) throw new GmailAuthError("No Google account with a refresh token is linked");
   const now = Math.floor(Date.now() / 1000);
-  let accessToken = acct.access_token && acct.expires_at && acct.expires_at > now + 120 ? decryptSecret(acct.access_token) : null;
-  if (!accessToken) {
-    const fresh = await refreshAccessToken(decryptSecret(acct.refresh_token));
-    accessToken = fresh.accessToken;
+  const refreshToken = acct.refresh_token;
+  const mint = async () => {
+    const fresh = await refreshAccessToken(decryptSecret(refreshToken));
     await db.update(accounts).set({ access_token: encryptSecret(fresh.accessToken), expires_at: fresh.expiresAt })
       .where(and(eq(accounts.provider, "google"), eq(accounts.providerAccountId, acct.providerAccountId)));
-  }
-  const gmail = new GmailClient(accessToken);
+    return fresh.accessToken;
+  };
+  const accessToken = acct.access_token && acct.expires_at && acct.expires_at > now + 120 ? decryptSecret(acct.access_token) : await mint();
+  const gmail = new GmailClient(accessToken, mint);
   const [mb] = await db.select({ email: mailboxes.email }).from(mailboxes).where(eq(mailboxes.userId, userId)).limit(1);
   return { gmail, email: mb?.email ?? "" };
 }
@@ -44,6 +45,7 @@ export async function ensureSetup(gmail: GmailClient, policy: PolicyConfig, mode
 }> {
   const routeLabels = routeLabelNames(compileRoutes(policy).routes);
   const labels = await gmail.ensureLabels([...ALL_TAXONOMY_LABELS, ACTION_LABEL, AI_LABEL, ...routeLabels]);
+  if (!policy.filing.manage) return { labels, managed: managedIds, filters: { created: [], deleted: [] }, planned: { create: 0, remove: 0 }, errors: [] };
   const managed = new Set(managedIds);
   const wanted = buildFilters(policy).map((spec) => toWanted(spec, labels));
   const plan = planSync(wanted, await gmail.listFilters(), managed);

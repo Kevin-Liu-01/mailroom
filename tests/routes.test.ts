@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultPolicy, normalizePolicy, parsePolicy, type PolicyConfig } from "@/lib/policy/schema";
 import {
-  BUILTIN_ROUTES, compileRoutes, isRetired, moreSpecific, overlap, parseFrom, planAdoption, routeClaims, routeLabels,
+  BUILTIN_ROUTES, compileRoutes, isRetired, moreSpecific, overlap, parseFrom, planAdoption, routeClaims, routeLabels, routeNames,
   senderMatches, senderTokens, splitTerms, subjectHas, type Route,
 } from "@/lib/policy/routes";
 import { buildFilters } from "@/lib/policy/rules";
@@ -148,6 +148,17 @@ describe("compiling routes", () => {
     expect(routeClaims(mine, "GitHub <notifications@github.com>", "Re: [repo] Fix the build (#12)")).toBe(true);
   });
 
+  it("tells a route that names a sender from one that gives the message up", () => {
+    const p = withRoutes([{ category: "marketing", from: "doordash.com" }, { category: "receipts", sub: "DoorDash", from: "no-reply@doordash.com", subject: "order OR receipt" }]);
+    const mine = compileRoutes(p).routes.find((r) => r.sub === "DoorDash")!;
+    // A delivery notice the qualifier misses is still named by the receipts route: reconcile keeps its label.
+    expect(routeClaims(mine, "DoorDash <no-reply@doordash.com>", "Details of your no-contact delivery from Target")).toBe(false);
+    expect(routeNames(mine, "DoorDash <no-reply@doordash.com>", "Details of your no-contact delivery from Target")).toBe(true);
+    // An invoice the dev route carves out is given up: reconcile may move it to Receipts.
+    const gh = find(defaultPolicy(), "dev-github");
+    expect(routeNames(gh, "GitHub <noreply@github.com>", "[GitHub] Payment receipt for Kevin")).toBe(false);
+  });
+
   it("lets your routes beat the built-ins on the same sender", () => {
     const p = withRoutes([{ category: "marketing", from: "delta.com" }]);
     expect(find(p, "travel").senders).not.toContain("delta.com");
@@ -212,14 +223,14 @@ describe("policy schema", () => {
   it("reads a policy saved before filing existed, and survives one bad section", () => {
     const legacy = JSON.parse(JSON.stringify(defaultPolicy())) as Record<string, unknown>;
     delete legacy.filing;
-    expect(normalizePolicy(legacy).filing).toEqual({ routes: [], builtinsOff: [] });
+    expect(normalizePolicy(legacy).filing).toEqual({ manage: true, routes: [], builtinsOff: [] });
     const broken = { ...legacy, aging: { archiveStragglersAfterDays: -5 }, senders: { work: ["acme.com"] } };
     const n = normalizePolicy(broken);
     expect(n.aging.archiveStragglersAfterDays).toBe(2);
     expect(n.senders.work).toEqual(["acme.com"]);
   });
   it("defaults to no routes of your own and no built-ins off", () => {
-    expect(defaultPolicy().filing).toEqual({ routes: [], builtinsOff: [] });
+    expect(defaultPolicy().filing).toEqual({ manage: true, routes: [], builtinsOff: [] });
   });
   it("rejects a route with nothing to match, and sub-labels with a slash", () => {
     expect(() => parsePolicy({ version: 1, filing: { routes: [{ category: "work" }] } })).toThrow();

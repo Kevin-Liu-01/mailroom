@@ -8,7 +8,7 @@ import { db, schema } from "@/db";
 import type { FilterRecord, RuleResult, RunSummary } from "@/db/schema";
 import { mapLimit } from "@/lib/gmail/client";
 import { AI_LABEL, type PolicyConfig } from "@/lib/policy/schema";
-import { compileRoutes, categoryLabel, planAdoption, routeClaims, routeQuery, type AdoptionItem, type CompiledRoute, type FileCategory, type RouteConflict } from "@/lib/policy/routes";
+import { compileRoutes, categoryLabel, formatSenders, planAdoption, routeClaims, routeNames, routeQuery, senderTokens, type AdoptionItem, type CompiledRoute, type FileCategory, type Route, type RouteConflict } from "@/lib/policy/routes";
 import { buildFilters } from "@/lib/policy/rules";
 import { ensureSetup, gmailFor, MailboxError } from "./run";
 import { planSync, toWanted } from "./filters";
@@ -28,6 +28,7 @@ async function recordRun(userId: string, summary: RunSummary, batches: BatchRow[
 }
 
 export type FilterStatus = {
+  manage: boolean;
   managed: number;
   wanted: number;
   toCreate: number;
@@ -50,7 +51,8 @@ export async function filterStatus(userId: string): Promise<FilterStatus> {
   const ours = new Set([...plan.keep.map((k) => k.filter.id), ...plan.remove.map((f) => f.id), ...managed]);
   const adoption = planAdoption(filters, (id) => byId.get(id), mb.policy, ours);
   return {
-    managed: plan.keep.length, wanted: wanted.length, toCreate: plan.create.length, toRemove: plan.remove.length,
+    manage: mb.policy.filing.manage,
+    managed: plan.keep.length, wanted: wanted.length, toCreate: mb.policy.filing.manage ? plan.create.length : 0, toRemove: mb.policy.filing.manage ? plan.remove.length : 0,
     adoptable: adoption.adopt, kept: adoption.keep, conflicts: compileRoutes(mb.policy).conflicts,
   };
 }
@@ -86,6 +88,7 @@ export async function adoptFilters(userId: string): Promise<{ runId: string | nu
   const before = mb.policy;
   const current = planSync(buildFilters(before).map((s) => toWanted(s, byName)), filters, managed);
   const ours = new Set([...current.keep.map((k) => k.filter.id), ...current.remove.map((f) => f.id), ...managed]);
+  if (!before.filing.manage) throw new MailboxError("Mailroom is not managing your Gmail filters. Turn that on in Filing first.");
   const plan = planAdoption(filters, (id) => byId.get(id), before, ours);
   if (!plan.adopt.length) return { runId: null, adopted: 0, created: 0, deleted: 0, kept: plan.keep.length };
 
@@ -117,11 +120,41 @@ export async function adoptFilters(userId: string): Promise<{ runId: string | nu
   return { runId, adopted: plan.adopt.length, created: created.length, deleted: deleted.length, kept: plan.keep.length };
 }
 
+/**
+ * File one sender into a category from the Senders page: it joins your plain route for that category and leaves your
+ * plain routes for any other, then the filters sync. One run records the policy before and the filter changes.
+ */
+export async function fileSender(userId: string, sender: string, category: FileCategory): Promise<{ runId: string | null; created: number; deleted: number }> {
+  const started = Date.now();
+  const token = sender.trim().toLowerCase();
+  if (!/^[^\s,()"]{3,}$/.test(token)) throw new MailboxError("That does not look like a sender");
+  const mb = await loadMailbox(userId);
+  const before = mb.policy;
+  const plain = (r: Route) => !r.sub && !r.subject && !r.except && !r.star;
+  let routes = before.filing.routes.map((r) => (plain(r) && r.category !== category && r.from ? { ...r, from: formatSenders(senderTokens(r.from).filter((t) => t !== token)) || undefined } : r)).filter((r) => r.from || r.subject);
+  const home = routes.find((r) => plain(r) && r.category === category);
+  if (home) routes = routes.map((r) => (r === home ? { ...r, from: formatSenders([...new Set([...senderTokens(r.from), token])]) } : r));
+  else routes = [...routes, { category, from: token }];
+  const policy: PolicyConfig = { ...before, filing: { ...before.filing, routes } };
+  const { gmail } = await gmailFor(userId);
+  const setup = await ensureSetup(gmail, policy, "apply", mb.managedFilters);
+  if (setup.errors.length) throw new MailboxError(`Gmail refused ${setup.errors.length}: ${setup.errors.join("; ")}. Nothing was changed.`);
+  await db.update(schema.mailboxes).set({ policy, managedFilters: setup.managed, updatedAt: new Date() }).where(eq(schema.mailboxes.userId, userId));
+  const n = setup.filters.created.length + setup.filters.deleted.length;
+  const runId = await recordRun(userId, {
+    rules: [{ id: `file-sender:${token}`, kind: "label", matched: n, applied: n, skipped: `files as ${categoryLabel(category)}` }],
+    totalApplied: n, durationMs: Date.now() - started, filters: setup.filters, policyBefore: before,
+  }, []);
+  return { runId, created: setup.filters.created.length, deleted: setup.filters.deleted.length };
+}
+
 export type ReconcileResult = {
   runId: string | null;
   days: number;
   added: { label: string; messages: number }[];
-  removed: { label: string; messages: number }[];
+  removed: { label: string; messages: number; samples: { from: string; subject: string }[] }[];
+  /** Labels kept because their own route names the sender, though another category's route claims the message. */
+  ambiguous: { label: string; messages: number; samples: { from: string; subject: string }[] }[];
 };
 
 const quoteLabel = (name: string) => `label:"${name.replace(/"/g, "")}"`;
@@ -131,6 +164,8 @@ const quoteLabel = (name: string) => `label:"${name.replace(/"/g, "")}"`;
  *   add: every message a route claims gets the route's labels;
  *   remove: a category label comes off a message when a route of another category claims it and no route of its own
  *   category does. Mail Jev labeled ("Mailroom/AI Sorted") and mail in Trash are never touched.
+ * Filing never makes old mail newly eligible for a trash rule: a category that trashes after N days only gains mail
+ * younger than N days, so reconciling cannot set off a sweep of old mail at the next run.
  */
 export async function reconcileMail(userId: string, opts: { days: number; apply: boolean; onProgress?: (msg: string) => void }): Promise<ReconcileResult> {
   const started = Date.now();
@@ -142,14 +177,23 @@ export async function reconcileMail(userId: string, opts: { days: number; apply:
   const labelId = setup.labels;
   const allLabels = await gmail.listLabels();
   const window = `newer_than:${days}d -in:trash`;
+  const a = mb.policy.aging;
+  const trashAge: Partial<Record<FileCategory, number | null>> = { security: a.trashSecurityCodesAfterDays, dev: a.trashDevAfterDays, social: a.trashSocialAfterDays, marketing: a.trashMarketingAfterDays };
+  const addWindow = (c: FileCategory) => {
+    const t = trashAge[c];
+    return `newer_than:${t ? Math.max(Math.min(days, t - 1), 1) : days}d -in:trash`;
+  };
   const batches: BatchRow[] = [];
   const added = new Map<string, number>();
   const removed = new Map<string, number>();
+  const samples = new Map<string, { from: string; subject: string }[]>();
+  const unsure = new Map<string, number>();
+  const unsureSamples = new Map<string, { from: string; subject: string }[]>();
 
   // 1. Add: what each route claims, missing its labels.
   for (const r of routes) {
     for (const label of r.labels) {
-      const ids = await gmail.listMessageIds(`${routeQuery(r)} ${window} -${quoteLabel(label)}`, 5000);
+      const ids = await gmail.listMessageIds(`${routeQuery(r)} ${addWindow(r.category)} -${quoteLabel(label)}`, 5000);
       if (!ids.length) continue;
       opts.onProgress?.(`add ${label}: ${ids.length} (${r.name})`);
       added.set(label, (added.get(label) ?? 0) + ids.length);
@@ -176,22 +220,48 @@ export async function reconcileMail(userId: string, opts: { days: number; apply:
       for (const id of await gmail.listMessageIds(`${labelExpr} ${window} -${quoteLabel(AI_LABEL)} from:(${chunk.join(" OR ")})`, 5000)) candidates.add(id);
     }
     if (!candidates.size) continue;
-    const metas = await mapLimit([...candidates], 4, (id) => gmail.getMessageMeta(id, ["From", "Subject"]).catch(() => null));
+    // Most candidates are claimed by a route of their own category and keep their label. Gmail evaluates those routes
+    // itself, 500 ids a page, so only the remainder needs a per-message look.
+    const ownClaimed = new Set<string>();
+    for (const o of own) for (const id of await gmail.listMessageIds(`${labelExpr} ${window} ${routeQuery(o)}`, 20000)) ownClaimed.add(id);
+    const rest = [...candidates].filter((id) => !ownClaimed.has(id));
+    if (!rest.length) continue;
+    const metas = await mapLimit(rest, 8, (id) => gmail.getMessageMeta(id, ["From", "Subject"]).catch(() => null));
     const familyIds = new Set(family.map((l) => l.id));
     const groups = new Map<string, string[]>();
+    const examples = new Map<string, { from: string; subject: string }[]>();
     for (const m of metas) {
       if (!m) continue;
       const from = m.headers["from"] ?? "", subject = m.headers["subject"] ?? "";
       if (own.some((r) => routeClaims(r, from, subject)) || !others.some((r) => routeClaims(r, from, subject))) continue;
       const strip = m.labelIds.filter((l) => familyIds.has(l)).sort();
       if (!strip.length) continue;
+      if (own.some((r) => routeNames(r, from, subject))) {
+        for (const l of strip) {
+          const name = family.find((f) => f.id === l)?.name ?? l;
+          unsure.set(name, (unsure.get(name) ?? 0) + 1);
+          const ex = unsureSamples.get(name) ?? [];
+          if (ex.length < 3 && !ex.some((e) => e.from === from)) ex.push({ from: from.replace(/\s*<[^>]+>/, "").replace(/"/g, "") || from, subject: subject.slice(0, 90) });
+          unsureSamples.set(name, ex);
+        }
+        continue;
+      }
       const key = strip.join(",");
       groups.set(key, [...(groups.get(key) ?? []), m.id]);
+      const ex = examples.get(key) ?? [];
+      if (ex.length < 3 && !ex.some((e) => e.from === from)) ex.push({ from: from.replace(/\s*<[^>]+>/, "").replace(/"/g, "") || from, subject: subject.slice(0, 90) });
+      examples.set(key, ex);
     }
     for (const [key, ids] of groups) {
       const strip = key.split(",");
-      opts.onProgress?.(`remove ${parent}: ${ids.length}`);
-      for (const l of strip) { const name = family.find((f) => f.id === l)?.name ?? l; removed.set(name, (removed.get(name) ?? 0) + ids.length); }
+      opts.onProgress?.(`remove ${parent}: ${ids.length} (${(examples.get(key) ?? []).map((e) => `${e.from}: ${e.subject}`).join(" | ")})`);
+      for (const l of strip) {
+        const name = family.find((f) => f.id === l)?.name ?? l;
+        removed.set(name, (removed.get(name) ?? 0) + ids.length);
+        const ex = samples.get(name) ?? [];
+        for (const e of examples.get(key) ?? []) if (ex.length < 3 && !ex.some((x) => x.from === e.from)) ex.push(e);
+        samples.set(name, ex);
+      }
       if (opts.apply) {
         await gmail.batchModify(ids, [], strip);
         batches.push({ ruleId: `reconcile:remove:${parent}`, messageIds: ids, addLabelIds: [], removeLabelIds: strip, restoreLabelIds: strip });
@@ -199,8 +269,12 @@ export async function reconcileMail(userId: string, opts: { days: number; apply:
     }
   }
 
-  const toList = (m: Map<string, number>) => [...m].map(([label, messages]) => ({ label, messages })).sort((a, b) => b.messages - a.messages);
-  const result: ReconcileResult = { runId: null, days, added: toList(added), removed: toList(removed) };
+  const toList = (m: Map<string, number>) => [...m].map(([label, messages]) => ({ label, messages })).sort((x, y) => y.messages - x.messages);
+  const result: ReconcileResult = {
+    runId: null, days, added: toList(added),
+    removed: toList(removed).map((r) => ({ ...r, samples: samples.get(r.label) ?? [] })),
+    ambiguous: toList(unsure).map((r) => ({ ...r, samples: unsureSamples.get(r.label) ?? [] })),
+  };
   if (opts.apply && batches.length) {
     const rules: RuleResult[] = [
       { id: "reconcile-add", kind: "label", matched: [...added.values()].reduce((a, b) => a + b, 0), applied: [...added.values()].reduce((a, b) => a + b, 0) },

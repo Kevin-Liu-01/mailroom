@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { Check, ExternalLink, RefreshCw, Shield, Trash2, Undo2, UserRound } from "lucide-react";
 import type { SenderDecision, SenderJudgment } from "@/db/schema";
 import { num, pct, usd, when } from "@/lib/format";
+import { CATEGORIES } from "@/lib/policy/schema";
+
+const CATS = CATEGORIES.filter((c) => c.label) as unknown as { id: string; label: string }[];
 
 export type SenderRow = {
   domain: string; displayName: string | null; messages: number; unread: number; inInbox: number; lastSeenAt: string | Date | null; sampleSubjects: string[]; listUnsubscribe: string | null;
@@ -43,6 +46,15 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
     if (json.error) setMsg(json.error);
     else if (json.applied) { setMsg(`Trashed ${json.applied.messages} from ${domain}.`); if (json.applied.runId) setLastRun(json.applied.runId); }
     else setMsg(`${domain}: ${decision ?? "cleared"}. The daily run enforces it.`);
+    setBusy(null); router.refresh();
+  }
+  async function fileAs(domain: string, category: string) {
+    if (!category) return;
+    setBusy(domain); setMsg(null);
+    const res = await fetch("/api/senders/route", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sender: domain, category }) });
+    const json = (await res.json()) as { runId?: string | null; created?: number; deleted?: number; error?: string };
+    if (json.error) setMsg(json.error);
+    else { setMsg(`${domain} now files as ${CATS.find((c) => c.id === category)?.label}. Gmail's filters are updated.`); if (json.runId) setLastRun(json.runId); }
     setBusy(null); router.refresh();
   }
   async function undo() {
@@ -104,6 +116,11 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
                       <ConfirmButton className="btn btn-sm" armedClassName="btn-primary btn-sm" disabled={busy !== null} label={<>30d <Trash2 size={13} /></>} confirmLabel="Trash older than 30d" onConfirm={() => decide(r.domain, "trash-old", true)} />
                       <ConfirmButton className="btn btn-sm btn-danger" armedClassName="btn-danger btn-sm" disabled={busy !== null} label={<>All <Trash2 size={13} /></>} confirmLabel="Trash all from this sender" onConfirm={() => decide(r.domain, "trash-all", true)} />
                       {mode === "all" ? <button className="btn btn-sm" disabled={busy !== null} title="A person: label Personal and keep important" onClick={() => decide(r.domain, "family")}><UserRound size={13} /></button> : null}
+                      <select className="input btn-sm w-auto py-0 text-[12.5px]" style={{ minHeight: 32 }} value="" disabled={busy !== null} aria-label={`File ${r.domain} as`} title="File this sender into a category, as a Gmail filter"
+                        onChange={(e) => void fileAs(r.domain, e.target.value)}>
+                        <option value="">File as…</option>
+                        {CATS.map((c) => <option key={c.id} value={c.id}>{c.label}{r.judgment?.category === c.id ? " · Jev" : ""}</option>)}
+                      </select>
                       {unsub ? <a className="btn btn-sm" href={unsub} target="_blank" rel="noreferrer" title="Open the sender's unsubscribe link (you click it, Mailroom never does)"><ExternalLink size={13} /></a> : null}
                     </div>
                   </td>
