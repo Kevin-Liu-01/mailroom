@@ -69,6 +69,15 @@ describe("built-in routes", () => {
       expect((f.criteria.from ?? "").length + (f.criteria.subject ?? "").length + (f.criteria.negatedQuery ?? "").length).toBeLessThan(2400);
     }
   });
+  it("never ask Gmail for more than one user label per filter", () => {
+    const p = withRoutes([{ category: "receipts", sub: "Uber", from: "uber.com", subject: "trip OR receipt" }, { category: "work", sub: "Acme", from: "acme.com" }]);
+    const specs = buildFilters(p);
+    for (const f of specs) expect(f.action.addLabelNames.filter((n) => !/^[A-Z_]+$/.test(n)), f.id).toHaveLength(1);
+    const uber = specs.filter((f) => f.criteria.from === "uber.com");
+    expect(uber.map((f) => f.action.addLabelNames[0]).sort()).toEqual(["Receipts", "Receipts/Uber"]);
+    expect(uber.find((f) => f.action.addLabelNames[0] === "Receipts/Uber")!.action.removeLabelIds).toEqual([]);
+  });
+
   it("keep Mailroom's earlier filters recognisable, so a sync can replace them", () => {
     expect(isRetired({ from: "notifications@github.com OR noreply@github.com OR support@github.com" })).toBe(true);
     expect(isRetired({ from: "linkedin.com" })).toBe(false);

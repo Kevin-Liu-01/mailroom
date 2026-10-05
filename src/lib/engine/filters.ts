@@ -53,28 +53,36 @@ export function planSync(wanted: WantedFilter[], existing: GmailFilter[], manage
 
 const record = (f: GmailFilter, managed: boolean, name?: string): FilterRecord => ({ id: f.id, criteria: { ...f.criteria }, action: { ...f.action }, managed, name });
 
-/** Apply a plan. Returns the ids Mailroom now owns and the records undo needs. */
-export async function applySync(gmail: GmailClient, plan: SyncPlan, managed: Set<string>): Promise<{ managed: string[]; created: FilterRecord[]; deleted: FilterRecord[] }> {
-  const owned = new Set(plan.keep.map((k) => k.filter.id));
+/**
+ * Apply a plan. Returns the ids Mailroom now owns, the records undo needs, and any errors. Creation never stops early,
+ * so every filter that was made is recorded; if any creation failed, nothing is deleted, so mail is never left unfiled.
+ */
+export async function applySync(gmail: GmailClient, plan: SyncPlan, managed: Set<string>): Promise<{ managed: string[]; created: FilterRecord[]; deleted: FilterRecord[]; errors: string[] }> {
+  const owned = new Set([...plan.keep.map((k) => k.filter.id), ...[...managed].filter((id) => !plan.remove.some((f) => f.id === id))]);
   const created: FilterRecord[] = [];
   const deleted: FilterRecord[] = [];
+  const errors: string[] = [];
   for (const w of plan.create) {
     try {
       const f = await gmail.createFilter(w.criteria, w.action);
       owned.add(f.id);
       created.push(record(f, true, w.spec.name));
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       // Gmail refuses an exact duplicate. Find the twin and own it instead.
-      if (!(err instanceof Error && /already exists/i.test(err.message))) throw err;
-      const twin = (await gmail.listFilters()).find((f) => sameCriteria(f.criteria, w.criteria) && sameAction(f.action, w.action));
+      const twin = /already exists/i.test(message) ? (await gmail.listFilters()).find((f) => sameCriteria(f.criteria, w.criteria) && sameAction(f.action, w.action)) : undefined;
       if (twin) owned.add(twin.id);
+      else errors.push(`${w.spec.name}: ${message.match(/"message":\s*"([^"]+)"/)?.[1] ?? message.slice(0, 160)}`);
     }
   }
-  for (const f of plan.remove) {
-    await gmail.deleteFilter(f.id);
-    deleted.push(record(f, managed.has(f.id)));
+  if (!errors.length) {
+    for (const f of plan.remove) {
+      await gmail.deleteFilter(f.id);
+      deleted.push(record(f, managed.has(f.id)));
+      owned.delete(f.id);
+    }
   }
-  return { managed: [...owned], created, deleted };
+  return { managed: [...owned], created, deleted, errors };
 }
 
 /** Reverse a run's filter changes: remove what it created, recreate what it removed. Returns the new owned set. */

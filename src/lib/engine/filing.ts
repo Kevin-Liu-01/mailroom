@@ -62,10 +62,12 @@ export async function syncFiltersNow(userId: string): Promise<{ runId: string | 
   const setup = await ensureSetup(gmail, mb.policy, "apply", mb.managedFilters);
   await db.update(schema.mailboxes).set({ managedFilters: setup.managed, labelsReady: true, updatedAt: new Date() }).where(eq(schema.mailboxes.userId, userId));
   const n = setup.filters.created.length + setup.filters.deleted.length;
-  if (!n) return { runId: null, created: 0, deleted: 0 };
+  const error = setup.errors.length ? `Gmail refused ${setup.errors.length}: ${setup.errors.join("; ")}. Nothing was removed.` : undefined;
+  if (!n && !error) return { runId: null, created: 0, deleted: 0 };
   const runId = await recordRun(userId, {
-    rules: [{ id: "sync-filters", kind: "label", matched: n, applied: n }], totalApplied: n, durationMs: 0, filters: setup.filters,
+    rules: [{ id: "sync-filters", kind: "label", matched: n, applied: n, ...(error ? { error } : {}) }], totalApplied: n, durationMs: 0, filters: setup.filters,
   }, []);
+  if (error) throw new MailboxError(error);
   return { runId, created: setup.filters.created.length, deleted: setup.filters.deleted.length };
 }
 
@@ -89,6 +91,13 @@ export async function adoptFilters(userId: string): Promise<{ runId: string | nu
 
   const policy: PolicyConfig = { ...before, filing: { ...before.filing, routes: plan.routes } };
   const setup = await ensureSetup(gmail, policy, "apply", mb.managedFilters);
+  if (setup.errors.length) {
+    // Keep the policy and every hand-made filter as they were; record what was created so Undo can take it back.
+    const error = `Gmail refused ${setup.errors.length} filters: ${setup.errors.join("; ")}. Your filters and policy are unchanged.`;
+    await db.update(schema.mailboxes).set({ managedFilters: setup.managed, updatedAt: new Date() }).where(eq(schema.mailboxes.userId, userId));
+    await recordRun(userId, { rules: [{ id: "adopt-filters", kind: "label", matched: plan.adopt.length, applied: 0, error }], totalApplied: setup.filters.created.length, durationMs: Date.now() - started, filters: setup.filters }, []);
+    throw new MailboxError(error);
+  }
   const created = [...setup.filters.created];
   const deleted = [...setup.filters.deleted];
   const owned = new Set(setup.managed);

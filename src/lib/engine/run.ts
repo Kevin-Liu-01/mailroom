@@ -40,7 +40,7 @@ type BatchRecord = { ruleId: string; messageIds: string[]; addLabelIds: string[]
  * with the policy's routes. Only filters Mailroom owns are created or removed; a preview just counts the changes.
  */
 export async function ensureSetup(gmail: GmailClient, policy: PolicyConfig, mode: RunMode, managedIds: string[]): Promise<{
-  labels: Record<string, string>; managed: string[]; filters: { created: FilterRecord[]; deleted: FilterRecord[] }; planned: { create: number; remove: number };
+  labels: Record<string, string>; managed: string[]; filters: { created: FilterRecord[]; deleted: FilterRecord[] }; planned: { create: number; remove: number }; errors: string[];
 }> {
   const routeLabels = routeLabelNames(compileRoutes(policy).routes);
   const labels = await gmail.ensureLabels([...ALL_TAXONOMY_LABELS, ACTION_LABEL, AI_LABEL, ...routeLabels]);
@@ -48,9 +48,9 @@ export async function ensureSetup(gmail: GmailClient, policy: PolicyConfig, mode
   const wanted = buildFilters(policy).map((spec) => toWanted(spec, labels));
   const plan = planSync(wanted, await gmail.listFilters(), managed);
   const planned = { create: plan.create.length, remove: plan.remove.length };
-  if (mode !== "apply") return { labels, managed: managedIds, filters: { created: [], deleted: [] }, planned };
+  if (mode !== "apply") return { labels, managed: managedIds, filters: { created: [], deleted: [] }, planned, errors: [] };
   const res = await applySync(gmail, plan, managed);
-  return { labels, managed: res.managed, filters: { created: res.created, deleted: res.deleted }, planned };
+  return { labels, managed: res.managed, filters: { created: res.created, deleted: res.deleted }, planned, errors: res.errors };
 }
 
 export async function runMailbox(opts: { userId: string; mode: RunMode; trigger: RunTrigger }): Promise<{ runId: string; summary: RunSummary }> {
@@ -74,6 +74,7 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
         id: "sync-filters", kind: "label", matched: setup.planned.create + setup.planned.remove,
         applied: mode === "apply" ? setup.filters.created.length + setup.filters.deleted.length : 0,
         skipped: `${setup.planned.create} to create, ${setup.planned.remove} to remove`,
+        ...(setup.errors.length ? { error: `Gmail refused ${setup.errors.length}: ${setup.errors.join("; ")}. Nothing was removed.` } : {}),
       });
     }
     const labels = setup.labels;

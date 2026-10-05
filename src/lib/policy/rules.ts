@@ -106,15 +106,17 @@ export type FilterSpec = {
   action: { addLabelNames: string[]; removeLabelIds: string[] };
 };
 
-/** One Gmail filter per route, with every overlap between routes resolved (see routes.ts). */
+/**
+ * Gmail filters for a policy's routes, with every overlap resolved (see routes.ts). Gmail lets a filter apply only one
+ * user label, so a route with a sub-label becomes two filters with the same criteria: one files into the category
+ * (and carries the inbox and importance actions), the other adds the sub-label.
+ */
 export function buildFilters(policy: PolicyConfig): FilterSpec[] {
-  return compileRoutes(policy).routes.map((r) => ({
-    id: r.id,
-    name: r.name,
-    origin: r.origin,
-    criteria: r.criteria,
-    action: { addLabelNames: [...r.labels, ...r.addSystem], removeLabelIds: r.removeSystem },
-  }));
+  return compileRoutes(policy).routes.flatMap((r) => {
+    const [parent, child] = r.labels;
+    const main: FilterSpec = { id: r.id, name: r.name, origin: r.origin, criteria: r.criteria, action: { addLabelNames: [parent, ...r.addSystem], removeLabelIds: r.removeSystem } };
+    return child ? [main, { id: `${r.id}:sub`, name: r.name, origin: r.origin, criteria: r.criteria, action: { addLabelNames: [child], removeLabelIds: [] } }] : [main];
+  });
 }
 
 export const ALL_TAXONOMY_LABELS = CATEGORY_IDS.map((id) => LABEL_BY_CATEGORY[id]).filter((l): l is string => Boolean(l));
