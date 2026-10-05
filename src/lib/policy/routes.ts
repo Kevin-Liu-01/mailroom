@@ -64,7 +64,8 @@ export const BUILTIN_ROUTES: (Route & { id: string; name: string })[] = [
   },
   {
     id: "receipts", name: "Orders, rides, and deliveries", category: "receipts",
-    from: "uber.com OR ubereats.com OR lyft.com OR doordash.com OR grubhub.com OR instacart.com OR seamless.com OR postmates.com OR gopuff.com OR toasttab.com OR auto-confirm@amazon.com OR shipment-tracking@amazon.com OR order-update@amazon.com OR digital-no-reply@amazon.com OR payments-messages@amazon.com OR return@amazon.com OR ship-confirm@amazon.com OR no_reply@email.apple.com OR ebay.com OR etsy.com",
+    // Uber mails receipts from one address and promotions from several others, so only that address is a receipt.
+    from: "noreply@uber.com OR ubereats.com OR lyft.com OR doordash.com OR grubhub.com OR instacart.com OR seamless.com OR postmates.com OR gopuff.com OR toasttab.com OR auto-confirm@amazon.com OR shipment-tracking@amazon.com OR order-update@amazon.com OR digital-no-reply@amazon.com OR payments-messages@amazon.com OR return@amazon.com OR ship-confirm@amazon.com OR no_reply@email.apple.com OR ebay.com OR etsy.com",
     subject: 'receipt OR order OR ordered OR trip OR shipped OR delivered OR "out for delivery" OR "no-contact delivery" OR arriving OR "your ride" OR invoice OR confirmation OR "payment received" OR "thank you for your purchase"',
     except: PROMO_WORDS,
   },

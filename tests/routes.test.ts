@@ -135,9 +135,11 @@ describe("compiling routes", () => {
   it("lets a subject-qualified route carve out its slice: Uber receipts stay receipts when Uber is marketing", () => {
     const p = withRoutes([{ category: "marketing", from: "uber.com OR doordash.com" }]);
     const marketing = compileRoutes(p).routes.find((r) => r.origin === "custom")!;
-    expect(marketing.excludeSlices.some((s) => s.senders.includes("uber.com"))).toBe(true);
+    expect(marketing.excludeSlices.some((s) => s.senders.includes("noreply@uber.com"))).toBe(true);
     expect(routeClaims(marketing, "Uber Receipts <noreply@uber.com>", "Your Tuesday morning trip with Uber")).toBe(false);
     expect(routeClaims(marketing, "Uber <uber@uber.com>", "Get 40% off your next 3 rides")).toBe(true);
+    // Uber's promotion addresses never send receipts, so an order word there is still a promotion.
+    expect(routeClaims(marketing, "Uber Eats <uber@uber.com>", "Ditch the dishes and order delivery today")).toBe(true);
     expect(routeClaims(find(p, "receipts"), "Uber Receipts <noreply@uber.com>", "Your Tuesday morning trip with Uber")).toBe(true);
   });
 
@@ -289,7 +291,7 @@ describe("promotions that mention an order", () => {
   it("gives the exception back to the unqualified route in the Gmail filter too", () => {
     const m = compileRoutes(policy).routes.find((r) => r.category === "marketing" && r.origin !== "builtin")!;
     expect(m.criteria.negatedQuery).toContain('-subject:("your next" OR "your first"');
-    expect(m.excludeSlices.find((s) => s.senders.includes("uber.com"))?.except).toContain("your next");
+    expect(m.excludeSlices.find((s) => s.senders.includes("noreply@uber.com"))?.except).toContain("your next");
   });
   it("does not count a route as naming mail its own exceptions give up", () => {
     expect(namesQuery(find(policy, "receipts"))).toContain('subject:("your next" OR "your first"');
