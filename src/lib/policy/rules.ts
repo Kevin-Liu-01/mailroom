@@ -20,6 +20,12 @@ function labelsFor(ids: CategoryId[]): string[] {
   return ids.map((id) => LABEL_BY_CATEGORY[id]).filter((l): l is string => Boolean(l));
 }
 
+/** People whose mail no rule archives or trashes: the senders you protect, family, and work. */
+function peopleGuard(policy: PolicyConfig): string {
+  const people = [...new Set([...policy.senders.protected, ...policy.senders.family, ...policy.senders.work])];
+  return people.length ? ` -from:(${people.join(" OR ")})` : "";
+}
+
 /**
  * Build the deterministic rule set for a policy. Every rule is a Gmail search plus a label change,
  * which is exactly what Gmail's batchModify needs and what a human can re-run by hand to verify.
@@ -29,12 +35,14 @@ export function buildRules(policy: PolicyConfig): Rule[] {
   const rules: Rule[] = [];
   const a = policy.aging;
   const protectedLabels = new Set(labelsFor(policy.categories.protected));
+  // A trash rule never touches mail you sent, mail that also carries a protected label, or mail from people you named.
+  const trashGuard = ` -in:sent${[...protectedLabels].map((l) => ` -${q(l)}`).join("")}${peopleGuard(policy)}`;
 
   for (const label of labelsFor(policy.categories.skipInbox)) {
     rules.push({
       id: `archive-stragglers:${label}`,
       kind: "archive",
-      query: `in:inbox ${q(label)} older_than:${a.archiveStragglersAfterDays}d`,
+      query: `in:inbox ${q(label)} older_than:${a.archiveStragglersAfterDays}d${peopleGuard(policy)}`,
       addLabelIds: [],
       removeLabelIds: ["INBOX"],
       why: `${label} mail leaves the inbox after ${a.archiveStragglersAfterDays} days if a filter missed it.`,
@@ -48,7 +56,7 @@ export function buildRules(policy: PolicyConfig): Rule[] {
     rules.push({
       id,
       kind: "trash",
-      query: `${labels.length === 1 ? q(labels[0]) : orLabels(labels)} older_than:${days}d -in:trash -is:starred`,
+      query: `${labels.length === 1 ? q(labels[0]) : orLabels(labels)} older_than:${days}d -in:trash -is:starred${trashGuard}`,
       addLabelIds: ["TRASH"],
       removeLabelIds: ["INBOX", "UNREAD"],
       why,
@@ -72,7 +80,7 @@ export function buildRules(policy: PolicyConfig): Rule[] {
     rules.push({
       id: `trash-sender:${domain}`,
       kind: "trash",
-      query: `from:${domain} older_than:${days}d -in:trash -is:starred`,
+      query: `from:${domain} older_than:${days}d -in:trash -is:starred${trashGuard}`,
       addLabelIds: ["TRASH"],
       removeLabelIds: ["INBOX", "UNREAD"],
       why: `You decided mail from ${domain} is disposable after ${days} days.`,

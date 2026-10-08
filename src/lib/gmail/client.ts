@@ -39,6 +39,7 @@ export function quotaCost(path: string, method = "GET"): number {
   if (/^\/(messages|threads)\/[^/?]+/.test(path)) return 20; // one message or thread read
   if (path.startsWith("/messages")) return 5; // a search page
   if (path.startsWith("/settings/filters") || path.startsWith("/labels")) return method === "GET" ? 1 : 5;
+  if (path.startsWith("/history")) return 2;
   return 1;
 }
 
@@ -127,8 +128,33 @@ export class GmailClient {
     return (await res.json()) as T;
   }
 
-  async profile(): Promise<{ emailAddress: string; messagesTotal: number; threadsTotal: number }> {
+  async profile(): Promise<{ emailAddress: string; messagesTotal: number; threadsTotal: number; historyId: string }> {
     return this.call("/profile");
+  }
+
+  /**
+   * What people took back since `startHistoryId`: messages restored from Trash and messages moved back into the inbox.
+   * Mailroom itself only does either when someone clicks Undo or restore, so every such change is a person's (or their
+   * agent's) decision. Returns null when Gmail no longer keeps history that far back.
+   */
+  async takenBack(startHistoryId: string): Promise<{ restored: string[]; inboxed: string[] } | null> {
+    const records: HistoryRecord[] = [];
+    let pageToken: string | undefined;
+    try {
+      do {
+        const params = new URLSearchParams({ startHistoryId, maxResults: "500" });
+        params.append("historyTypes", "labelRemoved");
+        params.append("historyTypes", "labelAdded");
+        if (pageToken) params.set("pageToken", pageToken);
+        const page = await this.call<{ history?: HistoryRecord[]; nextPageToken?: string }>(`/history?${params}`);
+        records.push(...(page.history ?? []));
+        pageToken = page.nextPageToken;
+      } while (pageToken);
+    } catch (err) {
+      if (err instanceof Error && / 404 /.test(err.message)) return null;
+      throw err;
+    }
+    return takenBackFrom(records);
   }
 
   async listLabels(): Promise<GmailLabel[]> {
@@ -234,6 +260,22 @@ export class GmailClient {
 }
 
 /** Run an async mapper with bounded concurrency, preserving order. */
+export type HistoryRecord = {
+  labelsAdded?: { message: { id: string }; labelIds: string[] }[];
+  labelsRemoved?: { message: { id: string }; labelIds: string[] }[];
+};
+
+/** Messages restored from Trash, and messages moved back into the inbox, in a run of Gmail history records. */
+export function takenBackFrom(records: HistoryRecord[]): { restored: string[]; inboxed: string[] } {
+  const restored = new Set<string>();
+  const inboxed = new Set<string>();
+  for (const r of records) {
+    for (const x of r.labelsRemoved ?? []) if (x.labelIds.includes("TRASH")) restored.add(x.message.id);
+    for (const x of r.labelsAdded ?? []) if (x.labelIds.includes("INBOX")) inboxed.add(x.message.id);
+  }
+  return { restored: [...restored], inboxed: [...inboxed].filter((id) => !restored.has(id)) };
+}
+
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;

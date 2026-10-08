@@ -77,6 +77,8 @@ export const mailboxes = pgTable("mailboxes", {
   labelsReady: boolean("labels_ready").default(false).notNull(),
   // Ids of the Gmail filters Mailroom created and owns; anything else in Gmail is the user's and is left alone.
   managedFilters: jsonb("managed_filters").$type<string[]>().default([]).notNull(),
+  /** Gmail's history id when the last apply run began. The next run reads what changed since, to learn what people took back. */
+  historyId: text("history_id"),
   lastRunAt: timestamp("last_run_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
@@ -161,6 +163,21 @@ export type Judgment = {
 };
 
 // TypeSafe judgments are cached per message so a message is only ever paid for once.
+/**
+ * Messages a person, or an agent acting for them, took back from Mailroom: restored from Trash or moved back to the
+ * inbox. No rule or AI decision trashes or archives them again.
+ */
+export const keptMessages = pgTable(
+  "kept_messages",
+  {
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    messageId: text("message_id").notNull(),
+    reason: text("reason").$type<"restored" | "inboxed">().notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.messageId] })],
+);
+
 export const aiJudgments = pgTable(
   "ai_judgments",
   {

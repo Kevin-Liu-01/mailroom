@@ -18,11 +18,22 @@ describe("policy defaults", () => {
 describe("rules", () => {
   const p = defaultPolicy();
   const rules = buildRules(p);
-  it("never trashes protected categories", () => {
+  it("never trashes protected categories, even mail that also carries another label", () => {
     const protectedLabels = ["Work", "Personal", "Banking & Finance", "Trips & Travel", "Events", "Recruiting", "School"];
     for (const r of rules.filter((r) => r.kind === "trash")) {
-      for (const label of protectedLabels) expect(r.query).not.toContain(`label:"${label}"`);
+      for (const label of protectedLabels) {
+        expect(r.query).not.toMatch(new RegExp(`(^|[^-])label:"${label}"`));
+        expect(r.query).toContain(`-label:"${label}"`);
+      }
     }
+  });
+  it("never trashes mail you sent", () => {
+    for (const r of rules.filter((r) => r.kind === "trash")) expect(r.query).toContain("-in:sent");
+  });
+  it("keeps the people you named out of every trash and archive rule", () => {
+    const named = buildRules(parsePolicy({ version: 1, senders: { protected: ["landlord@example.com"], family: ["mom@example.com"], trashAfterDays: { "deals.example.com": 30 } } }));
+    for (const r of named.filter((r) => r.kind === "trash" || r.kind === "archive")) expect(r.query).toContain("-from:(landlord@example.com OR mom@example.com)");
+    expect(named.find((r) => r.id === "trash-sender:deals.example.com")?.query).toContain("-in:sent");
   });
   it("only ever moves to TRASH, never deletes", () => {
     for (const r of rules) expect(r.addLabelIds.every((l) => ["TRASH"].includes(l) || !l.startsWith("SYSTEM"))).toBe(true);

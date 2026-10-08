@@ -12,7 +12,29 @@ import { expandLabelQuery } from "@/lib/gmail/labels";
 import { summarizeThread } from "@/lib/search/threads";
 import type { AiUsage, FilterRecord, Judgment, RuleResult, RunMode, RunSummary, RunTrigger } from "@/db/schema";
 
-const { accounts, aiJudgments, mailboxes, runBatches, runs } = schema;
+const { accounts, aiJudgments, keptMessages, mailboxes, runBatches, runs } = schema;
+
+/**
+ * What people took back from Mailroom: everything restored from Trash or moved back into the inbox, by hand or by an
+ * agent acting for them. Reads Gmail's history since the last apply run, records new finds in apply mode, and returns
+ * the full set together with the history id to resume from next time.
+ */
+async function takenBack(gmail: GmailClient, userId: string, since: string | null, mode: RunMode): Promise<{ kept: Set<string>; resumeFrom: string; fresh: number; historyLost: boolean }> {
+  const resumeFrom = (await gmail.profile()).historyId;
+  const kept = new Set((await db.select({ id: keptMessages.messageId }).from(keptMessages).where(eq(keptMessages.userId, userId))).map((r) => r.id));
+  if (!since) return { kept, resumeFrom, fresh: 0, historyLost: false };
+  const back = await gmail.takenBack(since);
+  if (!back) return { kept, resumeFrom, fresh: 0, historyLost: true };
+  const rows = [
+    ...back.restored.filter((id) => !kept.has(id)).map((messageId) => ({ userId, messageId, reason: "restored" as const })),
+    ...back.inboxed.filter((id) => !kept.has(id)).map((messageId) => ({ userId, messageId, reason: "inboxed" as const })),
+  ];
+  for (const r of rows) kept.add(r.messageId);
+  if (mode === "apply" && rows.length) {
+    for (let i = 0; i < rows.length; i += 500) await db.insert(keptMessages).values(rows.slice(i, i + 500)).onConflictDoNothing();
+  }
+  return { kept, resumeFrom, fresh: rows.length, historyLost: false };
+}
 
 export class MailboxError extends Error {}
 
@@ -82,6 +104,12 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
     const labels = setup.labels;
     if (mode === "apply") await db.update(mailboxes).set({ labelsReady: true, managedFilters: setup.managed }).where(eq(mailboxes.userId, userId));
 
+    // 0. Anything someone restored from Trash or moved back to the inbox is theirs now: no rule or AI decision moves it again.
+    const back = await takenBack(gmail, userId, mailbox.historyId, mode);
+    if (back.fresh || back.historyLost) {
+      results.push({ id: "taken-back", kind: "label", matched: back.fresh, applied: 0, skipped: back.historyLost ? "Gmail no longer keeps history back to the last run; restorations before now are not known" : `${back.fresh} restored or moved back to the inbox since the last run; left alone from now on` });
+    }
+
     // 1. Deterministic rules: free, exact, re-runnable by hand.
     // Users who nest labels ("Receipts/Uber") keep working: every taxonomy label in a rule also matches its sublabels.
     const allLabelNames = (await gmail.listLabels()).map((l) => l.name);
@@ -90,8 +118,10 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
       const query = expandLabelQuery(rule.query, allLabelNames);
       const entry: RuleResult = { id: rule.id, kind: rule.kind, query, matched: 0, applied: 0 };
       try {
-        const ids = await gmail.listMessageIds(query);
+        const found = await gmail.listMessageIds(query);
+        const ids = rule.kind === "trash" || rule.kind === "archive" ? found.filter((id) => !back.kept.has(id)) : found;
         entry.matched = ids.length;
+        if (ids.length < found.length) entry.skipped = `left ${found.length - ids.length} that someone took back`;
         if (rule.kind === "trash" && ids.length > policy.aging.maxTrashPerRule) {
           entry.skipped = `matched ${ids.length} > maxTrashPerRule ${policy.aging.maxTrashPerRule}; refused`;
         } else if (mode === "apply" && ids.length) {
@@ -114,7 +144,7 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
     if (policy.ai.enabled && policy.ai.maxMessagesPerRun > 0) {
       const key = await resolveKey(userId);
       if (key) {
-        ai = await withKey(key.key, () => triagePrimary({ gmail, email, userId, policy, labels, mode, batches }));
+        ai = await withKey(key.key, () => triagePrimary({ gmail, email, userId, policy, labels, mode, batches, kept: back.kept }));
         totalApplied += ai.labeled + ai.archived + ai.flaggedAction;
         results.push({ id: "ai-triage", kind: "ai", matched: ai.messagesConsidered, applied: ai.labeled + ai.archived + ai.flaggedAction });
       } else {
@@ -128,7 +158,7 @@ export async function runMailbox(opts: { userId: string; mode: RunMode; trigger:
     const summary: RunSummary = { rules: results, ai, totalApplied, durationMs: Date.now() - started };
     if (filterChanges.created.length || filterChanges.deleted.length) summary.filters = filterChanges;
     await db.update(runs).set({ status: "ok", summary, finishedAt: new Date() }).where(eq(runs.id, run.id));
-    await db.update(mailboxes).set({ lastRunAt: new Date(), status: "active", updatedAt: new Date() }).where(eq(mailboxes.userId, userId));
+    await db.update(mailboxes).set({ lastRunAt: new Date(), status: "active", updatedAt: new Date(), ...(mode === "apply" ? { historyId: back.resumeFrom } : {}) }).where(eq(mailboxes.userId, userId));
     return { runId: run.id, summary };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -165,9 +195,9 @@ function decide(j: Judgment, policy: PolicyConfig, labels: Record<string, string
 }
 
 async function triagePrimary(ctx: {
-  gmail: GmailClient; email: string; userId: string; policy: PolicyConfig; labels: Record<string, string>; mode: RunMode; batches: BatchRecord[];
+  gmail: GmailClient; email: string; userId: string; policy: PolicyConfig; labels: Record<string, string>; mode: RunMode; batches: BatchRecord[]; kept: Set<string>;
 }): Promise<NonNullable<RunSummary["ai"]>> {
-  const { gmail, email, userId, policy, labels, mode, batches } = ctx;
+  const { gmail, email, userId, policy, labels, mode, batches, kept } = ctx;
   const usage: AiUsage & { labeled: number; archived: number; flaggedAction: number } = {
     messagesConsidered: 0, messagesJudged: 0, cacheHits: 0, requests: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0, labeled: 0, archived: 0, flaggedAction: 0,
   };
@@ -219,6 +249,12 @@ async function triagePrimary(ctx: {
     });
   }
   usage.estimatedCostUsd = usage.inputTokens * USD_PER_INPUT_TOKEN;
+  // Jev may still label what someone took back, but never archives it again.
+  for (const d of decisions) {
+    if (!kept.has(d.id) || !d.remove.includes("INBOX")) continue;
+    d.remove = d.remove.filter((l) => l !== "INBOX");
+    d.actions = d.actions.filter((a) => a !== "archive");
+  }
 
   // Group identical label changes into one batchModify each.
   const groups = new Map<string, Decision[]>();

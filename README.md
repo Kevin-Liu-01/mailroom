@@ -54,7 +54,10 @@ routes file the message in another category, so labels you, Jev, or an earlier c
 - Metadata only. Headers, labels, and snippets are read; message bodies are never fetched, stored, or sent to anyone.
 - Never sends mail, never unsubscribes, never deletes permanently. Trash is Gmail's Trash with 30-day recovery.
 - Every run previews first; every apply writes a receipt; every receipt has Undo, whole or per message.
-- Starred mail is never trashed. Mail you wrote is never judged. Trash rules refuse to run past a per-rule cap.
+- Starred mail is never trashed, and neither is mail you sent, mail in a protected category, or mail from people you
+  named. Mail you wrote is never judged. Trash rules refuse to run past a per-rule cap.
+- What you take back stays back. Each run reads Gmail's history since the last one; anything restored from Trash or
+  moved back to the inbox, by you or by an agent working for you, is never trashed or archived by Mailroom again.
 - OAuth tokens and TypeSafe keys are AES-256-GCM encrypted at rest. Disconnect revokes the Google token and deletes everything.
 - Strict Content Security Policy, HSTS, same-origin checks on every write. See `SECURITY.md` and `docs/casa.md`.
 
