@@ -1,4 +1,5 @@
 "use client";
+import { useMask } from "@/components/app/Privacy";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, ChevronDown, Filter, Loader2, RefreshCw, Shuffle } from "lucide-react";
@@ -20,6 +21,7 @@ const preview = (s: string) => {
  * filing existing mail the way the routes would today. Every action here is a run with a receipt and an Undo.
  */
 export function FiltersCard({ refreshKey, onPolicyChanged }: { refreshKey: number; onPolicyChanged: () => void }) {
+  const mask = useMask();
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; runId?: string | null } | null>(null);
@@ -85,7 +87,7 @@ export function FiltersCard({ refreshKey, onPolicyChanged }: { refreshKey: numbe
           <p className="m-0 text-[14px] font-semibold">{status.adoptable.length} of your own filters can become routes</p>
           <p className="m-0 text-[13px] text-muted">One system then owns filing: a policy change reaches every sender, overlaps resolve by rule, and Undo covers it.</p>
           <ul className="m-0 list-none space-y-1 p-0 text-[13px]">
-            {status.adoptable.map((a) => <li key={a.id} className="flex flex-wrap gap-x-2"><span className="font-medium">{a.labels.filter((l) => !/^[A-Z_]+$/.test(l)).join(", ")}</span><span className="min-w-0 truncate font-mono text-[12px] text-muted">{preview(a.senders)}</span></li>)}
+            {status.adoptable.map((a) => <li key={a.id} className="flex flex-wrap gap-x-2"><span className="font-medium">{a.labels.filter((l) => !/^[A-Z_]+$/.test(l)).join(", ")}</span><span className="min-w-0 truncate font-mono text-[12px] text-muted">{mask(preview(a.senders))}</span></li>)}
           </ul>
           <ConfirmButton className="btn-primary btn-sm" armedClassName="btn-danger btn-sm" label={`Adopt ${status.adoptable.length} filters`} confirmLabel="Adopt them" message="Creates Mailroom's filters first, then removes these. One Undo puts everything back." onConfirm={adopt} busy={busy === "adopt"} busyLabel="Adopting…" disabled={busy !== null} icon={<Shuffle size={13} aria-hidden="true" />} />
         </div>
@@ -118,7 +120,7 @@ export function FiltersCard({ refreshKey, onPolicyChanged }: { refreshKey: numbe
               <div><p className="m-0 mb-1 text-muted">Labels to add</p><ul className="m-0 list-none space-y-0.5 p-0 font-mono text-[12.5px]">{plan.added.map((a) => <li key={a.label}>+ {a.label} <span className="text-muted">· {num(a.messages)}</span></li>)}{plan.added.length ? null : <li className="text-muted">none</li>}</ul></div>
               <div><p className="m-0 mb-1 text-muted">Labels to remove</p><ul className="m-0 list-none space-y-0.5 p-0 font-mono text-[12.5px]">{plan.removed.map((a) => (
                 <li key={a.label}>− {a.label} <span className="text-muted">· {num(a.messages)}</span>
-                  {a.samples?.length ? <span className="block truncate font-sans text-[12px] text-muted" title={a.samples.map((s) => `${s.from}: ${s.subject}`).join("\n")}>e.g. {a.samples.map((s) => s.from).join(", ")}</span> : null}
+                  {a.samples?.length ? <span className="block truncate font-sans text-[12px] text-muted" title={mask(a.samples.map((s) => `${s.from}: ${s.subject}`).join("\n"))}>e.g. {mask(a.samples.map((s) => s.from).join(", "))}</span> : null}
                   {a.to?.length ? (
                     <details className="font-sans text-[12px] text-muted">
                       <summary className="cursor-pointer">Where it goes now</summary>
@@ -132,7 +134,7 @@ export function FiltersCard({ refreshKey, onPolicyChanged }: { refreshKey: numbe
         ) : null}
         {plan?.ambiguous?.length ? (
           <p className="m-0 text-[12.5px] text-muted">
-            Kept as they are, because their own route names the sender but its subject words did not match: {plan.ambiguous.map((a) => `${a.label} ${num(a.messages)}${a.samples?.length ? ` (e.g. ${a.samples[0].from}: ${a.samples[0].subject})` : ""}`).join("; ")}. Search for them to file by hand.
+            Kept as they are, because their own route names the sender but its subject words did not match: {mask(plan.ambiguous.map((a) => `${a.label} ${num(a.messages)}${a.samples?.length ? ` (e.g. ${a.samples[0].from}: ${a.samples[0].subject})` : ""}`).join("; "))}. Search for them to file by hand.
           </p>
         ) : null}
       </div>

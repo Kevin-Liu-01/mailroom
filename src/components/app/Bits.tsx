@@ -41,16 +41,19 @@ export function Empty({ icon: Icon, children, action }: { icon: LucideIcon; chil
   );
 }
 
-/** An app page's opening: icon tile, a heading that always fits on one line, one line of facts under it, actions on the right. */
-export function PageHead({ icon, title, mono = false, children, actions }: { icon: ReactNode; title: ReactNode; mono?: boolean; children?: ReactNode; actions?: ReactNode }) {
+/**
+ * An app page's opening: icon tile, a heading that always fits on one line, one line of facts under it, actions on the
+ * right. `heading` replaces the title outright, for a heading that renders itself (the dashboard's account address).
+ */
+export function PageHead({ icon, title, heading, mono = false, children, actions }: { icon: ReactNode; title?: ReactNode; heading?: ReactNode; mono?: boolean; children?: ReactNode; actions?: ReactNode }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-6">
       <div className="flex min-w-0 flex-1 items-start gap-4">
         <span className="tile tile--lg mt-0.5" aria-hidden="true">{icon}</span>
         <div className="min-w-0 flex-1">
-          {typeof title === "string"
+          {heading ?? (typeof title === "string"
             ? <FitLine as="h1" text={title} voice={mono ? "mono" : "camber"} min={18} max={40} className="font-semibold tracking-[-0.02em]" />
-            : <h1 className={`m-0 whitespace-nowrap text-[clamp(22px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.02em] ${mono ? "font-mono" : ""}`}>{title}</h1>}
+            : <h1 className={`m-0 whitespace-nowrap text-[clamp(22px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.02em] ${mono ? "font-mono" : ""}`}>{title}</h1>)}
           {children ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13.5px] text-muted">{children}</div> : null}
         </div>
       </div>

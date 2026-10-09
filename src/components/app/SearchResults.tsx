@@ -1,4 +1,6 @@
 "use client";
+import { useHideEmails, useMask } from "@/components/app/Privacy";
+import { MASK, maskEmails } from "@/lib/privacy";
 import { ConfirmButton } from "@/components/Confirm";
 import { Bars, SIGNAL_TONE, SenderMark, TonedChip, TonedMeter } from "@/components/app/Bits";
 import { useEffect, useMemo, useState } from "react";
@@ -19,15 +21,18 @@ type Response = { compiled: CompiledQuery | null; gmail: string; total: number; 
 const SIGNAL_LABEL: Record<keyof Signals, string> = { relevance: "relevant", needsReply: "needs my reply", waiting: "waiting on them", human: "human", disposable: "disposable", urgency: "urgent" };
 const SIGNAL_ORDER: (keyof Signals)[] = ["needsReply", "waiting", "relevance", "urgency", "human", "disposable"];
 
-function sender(from: string): { name: string; domain: string } {
+function sender(from: string, hidden = false): { name: string; domain: string } {
   const email = from.match(/<([^>]+)>/)?.[1] ?? from.trim();
-  const name = from.replace(/<[^>]+>/, "").replace(/["']/g, "").trim() || email.split("@")[0];
+  const display = from.replace(/<[^>]+>/, "").replace(/["']/g, "").trim();
+  // With no display name the name is the address's local part, which hiding must cover too.
+  const name = hidden ? (display ? maskEmails(display) : MASK) : display || email.split("@")[0];
   return { name, domain: email.split("@")[1]?.toLowerCase() ?? "" };
 }
 
 /** How Jev read the question: every choice with its confidence, every leftover word with its role. */
 function Reading({ c }: { c: CompiledQuery }) {
   const j = c.jev;
+  const mask = useMask();
   return (
     <details className="group">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] text-muted hover:text-ink">
@@ -40,11 +45,11 @@ function Reading({ c }: { c: CompiledQuery }) {
         </div>
         <div className="space-y-2">
           <div><span className="font-bold">When</span> <span className="text-muted">{j.timeWindow.choice.replace(/_/g, " ")}{j.timeWindow.source === "ai" ? ` · ${pct(j.timeWindow.confidence)}` : j.timeWindow.source === "rule" ? " · from your words" : ""}</span></div>
-          {j.sender ? <div><span className="font-bold">Sender</span> <span className="text-muted">{j.sender.choice} · {pct(j.sender.confidence)}</span></div> : null}
+          {j.sender ? <div><span className="font-bold">Sender</span> <span className="text-muted">{mask(j.sender.choice)} · {pct(j.sender.confidence)}</span></div> : null}
           {j.terms.length ? (
             <div>
               <div className="font-bold">Leftover words</div>
-              <div className="mt-1 flex flex-wrap gap-1.5">{j.terms.map((t) => <span key={t.term} className={`chip ${t.role === "kind" ? "" : "chip--accent"}`} title={`${t.role} · ${pct(t.confidence)}`}>{t.term} · {t.role} {pct(t.confidence)}</span>)}</div>
+              <div className="mt-1 flex flex-wrap gap-1.5">{j.terms.map((t) => <span key={t.term} className={`chip ${t.role === "kind" ? "" : "chip--accent"}`} title={`${t.role} · ${pct(t.confidence)}`}>{mask(t.term)} · {t.role} {pct(t.confidence)}</span>)}</div>
             </div>
           ) : null}
         </div>
@@ -69,6 +74,8 @@ function Reading({ c }: { c: CompiledQuery }) {
 }
 
 export function SearchResults({ q }: { q: string }) {
+  const hidden = useHideEmails();
+  const mask = useMask();
   const router = useRouter();
   const [data, setData] = useState<Response | null>(null);
   const [loading, setLoading] = useState(false);
@@ -221,7 +228,7 @@ export function SearchResults({ q }: { q: string }) {
               </form>
             ) : (
               <>
-                <code className="rounded bg-surface px-2 py-1">{data.gmail}</code>
+                <code className="rounded bg-surface px-2 py-1">{mask(data.gmail)}</code>
                 <button className="btn btn-sm" type="button" onClick={() => setRawMode(true)}>Edit</button>
                 {naming ? (
                   <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); void save(); }}>
@@ -267,7 +274,7 @@ export function SearchResults({ q }: { q: string }) {
           </div>
           <ol className="m-0 list-none divide-y divide-line p-0">
             {results.map((r, i) => {
-              const s = sender(r.from);
+              const s = sender(r.from, hidden);
               const sig = r.signals ?? {};
               const order = primary ? [primary, ...SIGNAL_ORDER.filter((k) => k !== primary)] : SIGNAL_ORDER;
               return (
@@ -280,12 +287,12 @@ export function SearchResults({ q }: { q: string }) {
                       <span className="truncate text-[12px] text-muted">{s.domain}</span>
                       {r.latestUnread ? <TonedChip tone="blue" className="py-0">{r.unread > 1 ? `${r.unread} unread` : "unread"}</TonedChip> : <span className="chip py-0">Read</span>}
                     </div>
-                    <div className={`truncate text-[14.5px] ${r.unread ? "font-bold" : ""}`}>{r.subject}</div>
-                    <div className="truncate text-[13px] text-muted">{r.snippet}</div>
+                    <div className={`truncate text-[14.5px] ${r.unread ? "font-bold" : ""}`}>{mask(r.subject)}</div>
+                    <div className="truncate text-[13px] text-muted">{mask(r.snippet)}</div>
                     <div className="mt-1 text-[12px] text-muted">
                       {(r.total ?? r.matched) > 1 ? `${r.total ?? r.matched} messages` : "1 message"}
                       {r.lastFromMe !== null ? ` · last from ${r.lastFromMe ? "you" : "them"}` : ""}
-                      {r.participants.length > 1 ? ` · ${r.participants.slice(0, 3).join(", ")}` : ""}
+                      {r.participants.length > 1 ? ` · ${r.participants.slice(0, 3).map(mask).join(", ")}` : ""}
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                       {order.map((k) => (sig[k] !== undefined ? <TonedMeter key={k} value={sig[k]!} label={SIGNAL_LABEL[k]} tone={SIGNAL_TONE[k] ?? "ink"} strong={k === primary} /> : null))}

@@ -1,4 +1,5 @@
 "use client";
+import { useHideEmails } from "@/components/app/Privacy";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CATEGORIES, type CategoryId, type PolicyConfig } from "@/lib/policy/schema";
 import type { Rule } from "@/lib/policy/rules";
@@ -60,16 +61,18 @@ function Num({ label, value, onChange, step = 0.05, min = 0, max = 1 }: { label:
 }
 
 function Lines({ label, hint, value, onChange }: { label: string; hint: string; value: string[]; onChange: (v: string[]) => void }) {
+  const hidden = useHideEmails();
   return (
     <label className="block space-y-1 text-sm">
       <span className="font-medium">{label}</span>
-      <textarea className="mono h-28 w-full rounded border border-line bg-page p-2 text-xs" value={value.join("\n")} placeholder={hint}
+      <textarea className={`mono h-28 w-full rounded border border-line bg-page p-2 text-xs ${hidden ? "blur-[5px]" : ""}`} value={value.join("\n")} placeholder={hint}
         onChange={(e) => onChange(e.target.value.split(/\n|,/).map((s) => s.trim()).filter(Boolean))} />
     </label>
   );
 }
 
 export function PolicyEditor() {
+  const hidden = useHideEmails();
   const [data, setData] = useState<Api | null>(null);
   const [policy, setPolicy] = useState<PolicyConfig | null>(null);
   const [saving, setSaving] = useState(false);
@@ -165,7 +168,7 @@ export function PolicyEditor() {
           <Lines label="Protected senders (never trashed or archived by any rule or AI decision)" hint="landlord@example.com&#10;accountant.co" value={policy.senders.protected} onChange={(v) => set({ senders: { ...policy.senders, protected: v } })} />
           <label className="block space-y-1 text-sm">
             <span className="font-medium">Per-sender trash schedule (domain and days, one per line)</span>
-            <textarea className="mono h-28 w-full rounded border border-line bg-page p-2 text-xs" placeholder="em.target.com 30&#10;news.arcteryx.com 1"
+            <textarea className={`mono h-28 w-full rounded border border-line bg-page p-2 text-xs ${hidden ? "blur-[5px]" : ""}`} placeholder="em.target.com 30&#10;news.arcteryx.com 1"
               value={Object.entries(policy.senders.trashAfterDays).map(([d, n]) => `${d} ${n}`).join("\n")}
               onChange={(e) => { const next: Record<string, number> = {}; for (const line of e.target.value.split("\n")) { const [d, n] = line.trim().split(/\s+/); if (d && d.length >= 3) next[d] = Math.max(1, Number(n) || 30); } set({ senders: { ...policy.senders, trashAfterDays: next } }); }} />
             <span className="text-xs text-muted">The Senders and Trash pages write these for you; edit here to change a number.</span>

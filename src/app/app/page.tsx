@@ -24,6 +24,7 @@ import { summarizeThread } from "@/lib/search/threads";
 import { senderOverview } from "@/lib/engine/senders";
 import { USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
 import { daysAgo, num, usd, when } from "@/lib/format";
+import { AccountHeading, Masked } from "@/components/app/Privacy";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +85,7 @@ export default async function Dashboard() {
     <div className="section space-y-14">
       <PageHead
         icon={<GmailMark size={30} />}
-        title={mailbox.email}
+        heading={<AccountHeading email={mailbox.email} />}
         actions={<><Link href="/app/policy" className="btn"><SlidersHorizontal size={15} aria-hidden="true" /> Policy</Link><Link href="/app/search" className="btn"><Search size={15} aria-hidden="true" /> Search</Link></>}
       >
         <Meta icon={PlugZap}>{needsReauth ? "Needs reconnect" : mailbox.status === "active" ? "Connected" : mailbox.status.replace(/^./, (c) => c.toUpperCase())}</Meta>
@@ -166,10 +167,10 @@ export default async function Dashboard() {
                     <SenderMark from={j.from ?? ""} />
                     <div className="min-w-0">
                       <p className="m-0 flex items-center gap-2 truncate font-bold">
-                        <span className="truncate">{j.subject ?? "(no subject)"}</span>
+                        <span className="truncate"><Masked text={j.subject} fallback="(no subject)" /></span>
                         {live.get(j.messageId)?.unread ? <TonedChip tone="blue" className="shrink-0 py-0">Unread</TonedChip> : live.has(j.messageId) ? <span className="chip shrink-0 py-0">Read</span> : null}
                       </p>
-                      <p className="m-0 truncate text-xs text-muted">{j.from}{j.judgment.threadMessages && j.judgment.threadMessages > 1 ? ` · ${j.judgment.threadMessages} messages` : ""}</p>
+                      <p className="m-0 truncate text-xs text-muted"><Masked text={j.from} />{j.judgment.threadMessages && j.judgment.threadMessages > 1 ? ` · ${j.judgment.threadMessages} messages` : ""}</p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                         <TonedMeter value={j.judgment.needsAction} label="action" tone="red" strong />
                         <TonedMeter value={j.judgment.timeSensitive} label="time-sensitive" tone="amber" />

@@ -1,4 +1,5 @@
 "use client";
+import { useMask } from "@/components/app/Privacy";
 import { ConfirmButton } from "@/components/Confirm";
 import { Meter } from "@/components/app/Bits";
 import { useMemo, useState } from "react";
@@ -29,6 +30,7 @@ function unsubscribeUrl(h: string | null): string | null {
 }
 
 export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" | "all" }) {
+  const mask = useMask();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -86,9 +88,9 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
               return (
                 <tr key={r.domain}>
                   <td>
-                    <div className="font-semibold">{r.displayName ?? r.domain}</div>
+                    <div className="font-semibold">{mask(r.displayName ?? r.domain)}</div>
                     <div className="mono text-[12px] text-muted">{r.domain} · last {when(r.lastSeenAt)}</div>
-                    {r.sampleSubjects.length ? <div className="mt-1 max-w-md truncate text-[12px] text-muted" title={r.sampleSubjects.join(" · ")}>{r.sampleSubjects.slice(0, 2).join(" · ")}</div> : null}
+                    {r.sampleSubjects.length ? <div className="mt-1 max-w-md truncate text-[12px] text-muted" title={mask(r.sampleSubjects.join(" · "))}>{mask(r.sampleSubjects.slice(0, 2).join(" · "))}</div> : null}
                   </td>
                   <td className="text-right font-semibold">{num(r.messages)}</td>
                   <td style={{ minWidth: 110 }}>

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { maskIf } from "@/lib/privacy";
+import { emailsHidden } from "@/lib/privacy-server";
+import { Masked } from "@/components/app/Privacy";
 import { ArrowLeft, CheckCircle2, Eye, Filter, Flag, ListChecks, Play, Tags, Zap } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
@@ -17,7 +20,7 @@ const SYSTEM_LABELS: Record<string, string> = { TRASH: "Trash", INBOX: "Inbox", 
 export const dynamic = "force-dynamic";
 
 export default async function RunPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const [session, hidden] = await Promise.all([auth(), emailsHidden()]);
   if (!session?.user?.id) redirect("/");
   const { id } = await params;
   const [run] = await db.select().from(schema.runs).where(and(eq(schema.runs.id, id), eq(schema.runs.userId, session.user.id))).limit(1);
@@ -73,7 +76,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
                     return (
                       <li key={f.id} className="min-w-0">
                         <span className="font-medium">{adds.join(" + ") || f.name || "Filter"}</span>
-                        <span className="block truncate font-mono text-[11.5px] text-muted" title={c.from ?? c.subject}>{c.from ? `from ${c.from}` : `subject ${c.subject ?? ""}`}</span>
+                        <span className="block truncate font-mono text-[11.5px] text-muted" title={maskIf(hidden, c.from ?? c.subject)}>{c.from ? <>from <Masked text={c.from} /></> : <>subject <Masked text={c.subject} /></>}</span>
                       </li>
                     );
                   })}

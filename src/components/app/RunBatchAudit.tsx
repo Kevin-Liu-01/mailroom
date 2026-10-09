@@ -1,4 +1,5 @@
 "use client";
+import { useMask } from "@/components/app/Privacy";
 import { useMemo, useRef, useState } from "react";
 import { CheckCircle2, Loader2, Sparkles, Undo2 } from "lucide-react";
 import { SenderMark, TonedChip, TonedMeter } from "@/components/app/Bits";
@@ -17,6 +18,7 @@ const usd = (n: number) => (n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
  * The grader sees the rule's intent and each email's metadata; the counts and the list update as pages land.
  */
 export function RunBatchAudit({ runId, batchId, total, kind }: { runId: string; batchId: string; total: number; kind: RuleKind }) {
+  const mask = useMask();
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -87,12 +89,12 @@ export function RunBatchAudit({ runId, batchId, total, kind }: { runId: string; 
           <ul className="m-0 list-none divide-y divide-line p-0">
             {flagged.map((r) => (
               <li key={r.id} className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 py-2 text-[13.5px]">
-                <input type="checkbox" className="size-4" checked={selected.has(r.id)} disabled={restored.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.subject ?? r.id}`} />
+                <input type="checkbox" className="size-4" checked={selected.has(r.id)} disabled={restored.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${mask(r.subject) || r.id}`} />
                 <SenderMark from={r.from ?? ""} size={16} />
                 <span className="min-w-0">
-                  <span className="flex items-baseline gap-2"><span className="truncate font-medium">{senderName(r.from ?? "")}</span><span className="shrink-0 font-mono text-[12px] text-muted">{r.date ? when(r.date) : ""}</span></span>
-                  <span className="block truncate text-muted">{r.subject}</span>
-                  <span className="block text-[12.5px] text-muted">{r.why}</span>
+                  <span className="flex items-baseline gap-2"><span className="truncate font-medium">{mask(senderName(r.from ?? ""))}</span><span className="shrink-0 font-mono text-[12px] text-muted">{r.date ? when(r.date) : ""}</span></span>
+                  <span className="block truncate text-muted">{mask(r.subject)}</span>
+                  <span className="block text-[12.5px] text-muted">{mask(r.why)}</span>
                 </span>
                 {restored.has(r.id) ? <TonedChip tone="green">Restored</TonedChip> : <TonedChip tone={r.verdict === "disagree" ? "red" : "amber"}>{r.verdict === "disagree" ? "Disagree" : "Unsure"}</TonedChip>}
               </li>

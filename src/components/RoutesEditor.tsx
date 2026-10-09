@@ -1,4 +1,5 @@
 "use client";
+import { useHideEmails, useMask } from "@/components/app/Privacy";
 import { useMemo, useState } from "react";
 import { AlertTriangle, ChevronDown, Plus, Star, Trash2 } from "lucide-react";
 import { CATEGORIES, type PolicyConfig } from "@/lib/policy/schema";
@@ -12,6 +13,7 @@ const toLines = (expr?: string) => senderTokens(expr).join("\n");
 const fromLines = (text: string) => senderTokens(text.replace(/\n/g, " OR ")).join(" OR ") || undefined;
 
 function RouteRow({ route, onChange, onRemove }: { route: Route; onChange: (r: Route) => void; onRemove: () => void }) {
+  const hidden = useHideEmails();
   const [senders, setSenders] = useState(toLines(route.from));
   const count = senderTokens(route.from).length;
   return (
@@ -31,7 +33,7 @@ function RouteRow({ route, onChange, onRemove }: { route: Route; onChange: (r: R
       <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <label className="block space-y-1 text-[13px]">
           <span className="text-muted">Senders, one per line{count ? ` · ${count}` : ""}</span>
-          <textarea className="input font-mono h-24 py-2 text-[12.5px]" placeholder={"uber.com\nreceipts@lyft.com"} value={senders}
+          <textarea className={`input font-mono h-24 py-2 text-[12.5px] ${hidden ? "blur-[5px]" : ""}`} placeholder={"uber.com\nreceipts@lyft.com"} value={senders}
             onChange={(e) => { setSenders(e.target.value); onChange({ ...route, from: fromLines(e.target.value) }); }} />
         </label>
         <label className="block space-y-1 text-[13px]">
@@ -53,6 +55,7 @@ function RouteRow({ route, onChange, onRemove }: { route: Route; onChange: (r: R
  * conflicts. Overlaps are resolved by rule when the filters compile; only true conflicts are shown here.
  */
 export function RoutesEditor({ policy, onChange }: { policy: PolicyConfig; onChange: (filing: PolicyConfig["filing"]) => void }) {
+  const mask = useMask();
   const { routes, builtinsOff } = policy.filing;
   const compiled = useMemo(() => compileRoutes(policy), [policy]);
   const [keys, setKeys] = useState(() => routes.map((_, i) => i));
@@ -70,7 +73,7 @@ export function RoutesEditor({ policy, onChange }: { policy: PolicyConfig; onCha
         <div className="card space-y-1.5 border-ink p-4 text-[13.5px]">
           <p className="m-0 flex items-center gap-2 font-semibold"><AlertTriangle size={15} aria-hidden="true" /> {compiled.conflicts.length === 1 ? "One sender is" : `${compiled.conflicts.length} senders are`} filed into two categories</p>
           <ul className="m-0 list-none space-y-0.5 p-0 text-muted">
-            {compiled.conflicts.map((c) => <li key={c.sender}><span className="font-mono text-ink">{c.sender}</span> goes to {c.categories.map(labelOf).join(" and ")}. Remove it from one.</li>)}
+            {compiled.conflicts.map((c) => <li key={c.sender}><span className="font-mono text-ink">{mask(c.sender)}</span> goes to {c.categories.map(labelOf).join(" and ")}. Remove it from one.</li>)}
           </ul>
         </div>
       ) : null}

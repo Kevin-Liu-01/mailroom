@@ -1,4 +1,5 @@
 "use client";
+import { useMask } from "@/components/app/Privacy";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { SenderMark, TonedChip } from "@/components/app/Bits";
@@ -13,6 +14,7 @@ const senderName = (from: string) => {
 
 /** The emails one batch touched: sender, subject, date, and where each sits in Gmail now. Ten first, then thirty at a time. */
 export function RunBatchMessages({ runId, batchId, total }: { runId: string; batchId: string; total: number }) {
+  const mask = useMask();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +52,10 @@ export function RunBatchMessages({ runId, batchId, total }: { runId: string; bat
               {r.gone ? <span className="text-muted">No longer in Gmail</span> : (
                 <>
                   <span className="flex items-baseline gap-2">
-                    <span className={`truncate ${r.unread ? "font-semibold" : "font-medium"}`}>{senderName(r.from ?? "")}</span>
+                    <span className={`truncate ${r.unread ? "font-semibold" : "font-medium"}`}>{mask(senderName(r.from ?? ""))}</span>
                     <span className="shrink-0 font-mono text-[12px] text-muted">{r.date ? when(r.date) : ""}</span>
                   </span>
-                  <span className="block truncate text-muted">{r.subject}</span>
+                  <span className="block truncate text-muted">{mask(r.subject)}</span>
                 </>
               )}
             </span>
