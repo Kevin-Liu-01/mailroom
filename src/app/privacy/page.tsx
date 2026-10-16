@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Analytics } from "@/components/Analytics";
 
 export const metadata = { title: "Mailroom · Privacy" };
 
@@ -12,10 +13,12 @@ export default function Privacy() {
         <p><strong>What leaves Google.</strong> For triage and search, the metadata above is sent to TypeSafe (typesafe.ai), which returns typed probabilities and does not train on requests. Nothing is sent to any other third party.</p>
         <p><strong>What Mailroom does to your mailbox.</strong> It adds and removes labels, archives, marks read, and moves messages to Gmail&apos;s Trash, where Gmail keeps them for 30 days. It never sends mail, never unsubscribes on your behalf, and never deletes anything permanently.</p>
         <p><strong>Deleting your data.</strong> Disconnect from the dashboard. That revokes the Google token and deletes every row Mailroom holds about you. Labels already in your Gmail stay yours.</p>
+        <p><strong>Analytics.</strong> The public pages (the home page, this privacy page, and the terms) use Google Analytics 4 when you are not signed in. It measures visits (pages, device, approximate location) so we can see what people use. It never runs in the signed-in app and never sees your mail, your searches, or your email address. No ads or ad personalization. Visitors in the EEA, the UK, and Switzerland are measured without analytics cookies (Consent Mode). To opt out, use <a className="underline" href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noreferrer">tools.google.com/dlpage/gaoptout</a>.</p>
         <p><strong>Google API Services.</strong> Mailroom&apos;s use of information received from Google APIs adheres to the <a className="underline" href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
         <p><strong>Contact.</strong> Kevin Liu, k.bowen.liu@gmail.com.</p>
       </div>
       <Link href="/" className="btn">Back</Link>
+      <Analytics />
     </div>
   );
 }

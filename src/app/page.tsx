@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { ArrowDown, ArrowRight, BadgeDollarSign, BrainCircuit, Coins, Gauge, History, KeyRound, Lock, LogOut, Search, ShieldAlert, ShieldCheck, Tags, Trash2, Undo2, Workflow } from "lucide-react";
 import { auth } from "@/auth";
+import { Analytics } from "@/components/Analytics";
 import { GmailMark } from "@/components/GmailMark";
 import { SignInButton } from "@/components/SignInButton";
 import { HeroScene } from "@/components/landing/HeroScene";
@@ -136,6 +137,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
       <Seam />
 
       <ClosingBand cta={cta} />
+      <Analytics />
     </div>
   );
 }

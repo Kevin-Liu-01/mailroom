@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Analytics } from "@/components/Analytics";
 
 export const metadata = { title: "Mailroom · Terms" };
 
@@ -13,6 +14,7 @@ export default function Terms() {
         <p>Usage is limited by Google&apos;s OAuth policies and by the free tiers of the services Mailroom runs on. Access may be paused if those limits are reached.</p>
       </div>
       <Link href="/" className="btn">Back</Link>
+      <Analytics />
     </div>
   );
 }

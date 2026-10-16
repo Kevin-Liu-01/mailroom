@@ -42,13 +42,16 @@ an **ADA-CASA AL1** security assessment (formerly "Tier 2"), due **December 29, 
 | 6.3 | Origin header not used for authentication | Correct. The `Origin` check in middleware only refuses cross-site writes; it never grants access. Authentication is the session cookie, always. | `src/middleware.ts` |
 | 6.4 | No subdomain takeover | `mailroom.kevinliu.studio` is a CNAME to Vercel with the project bound. **Kevin to confirm no dangling records under `kevinliu.studio`** (a CNAME to a service that no longer serves it). | DNS zone for kevinliu.studio |
 | 6.5 | No credentials or payment details in logs | Nothing logs tokens or secrets. The one diagnostic log on search failures records the question text and the error message only. No payments exist. | `src/app/api/search/route.ts` |
-| 6.6 | Client storage cleared on logout | Browser storage holds only the theme preference (no user data). The session cookie is cleared on sign out. | `src/components/ThemeToggle.tsx`, Auth.js sign-out |
+| 6.6 | Client storage cleared on logout | Browser storage holds only the theme preference (no user data). The session cookie is cleared on sign out. Google Analytics sets its first-party cookies (a random client id) only on the public pages, for signed-out visitors outside the EEA, the UK and Switzerland; never in the app. | `src/components/ThemeToggle.tsx`, Auth.js sign-out |
 | 6.7 | Server-side secrets stored securely | All secrets live in Vercel's encrypted environment variables (`TYPESAFE_API_KEY`, `AUTH_SECRET`, Google client id and secret, `DATABASE_URL`, `CRON_SECRET`, `TOKEN_ENCRYPTION_KEY`). OAuth tokens are encrypted in the database. Nothing secret is committed. | Vercel project settings; `src/lib/crypto.ts` |
 
 Security headers sent on every response (added 2026-10-01): `Content-Security-Policy` (self-only scripts and styles,
 inline allowed for Next and Tailwind, `frame-ancestors 'none'`, `object-src 'none'`), `Strict-Transport-Security`
 with preload, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
 `Permissions-Policy` denying camera, microphone, geolocation, payment, and USB, `Cross-Origin-Opener-Policy: same-origin`.
+On the public pages alone (`/`, `/privacy`, `/terms`; added 2026-10-16) the policy also allows Google Analytics 4:
+scripts from `https://www.googletagmanager.com`, connections to `*.google-analytics.com`, `*.analytics.google.com` and
+`*.googletagmanager.com`. The signed-in app and the API keep the policy above (`next.config.ts`, `src/lib/analytics.ts`).
 
 ## Data handling statements the questionnaire usually asks for
 
