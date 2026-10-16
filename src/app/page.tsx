@@ -16,6 +16,7 @@ import { FitLine, IconCard, Seam, SectionHead, emWidth } from "@/components/land
 import { LabelGrid } from "@/components/landing/LabelGrid";
 import { defaultPolicy } from "@/lib/policy/schema";
 import { ESTIMATED_TOKENS_PER_MESSAGE, USD_PER_INPUT_TOKEN } from "@/lib/ai/triage";
+import { siteJsonLd } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,8 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
 
   return (
     <div>
+      {/* React writes a script's text as is (only `</script` is escaped), so the JSON needs no innerHTML */}
+      <script type="application/ld+json">{siteJsonLd()}</script>
       <section id="hero" className="section relative">
         <div className="dither" aria-hidden="true" />
         <div className="relative">
