@@ -4,7 +4,7 @@ import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { encryptSecret } from "@/lib/crypto";
-import { defaultPolicy } from "@/lib/policy/schema";
+import { newMailbox } from "@/lib/mailbox";
 
 export const GMAIL_SCOPES = [
   "openid",
@@ -64,11 +64,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   events: {
     async createUser({ user }) {
       if (!user.id || !user.email) return;
-      await db.insert(schema.mailboxes).values({ userId: user.id, email: user.email, policy: defaultPolicy() }).onConflictDoNothing();
+      await db.insert(schema.mailboxes).values(newMailbox(user.id, user.email)).onConflictDoNothing();
     },
     async signIn({ user }) {
       if (!user.id || !user.email) return;
-      await db.insert(schema.mailboxes).values({ userId: user.id, email: user.email, policy: defaultPolicy() }).onConflictDoNothing();
+      await db.insert(schema.mailboxes).values(newMailbox(user.id, user.email)).onConflictDoNothing();
       await db.update(schema.mailboxes).set({ status: "active", updatedAt: new Date() }).where(eq(schema.mailboxes.userId, user.id));
     },
   },

@@ -100,7 +100,7 @@ export function PolicyEditor() {
     const clean = { ...policy, filing: { ...policy.filing, routes: policy.filing.routes.filter((r) => r.from || r.subject) } };
     const res = await fetch("/api/policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ policy: clean }) });
     const d = (await res.json()) as Api;
-    if (res.ok) { setData({ ...d, scheduleEnabled: data?.scheduleEnabled ?? true }); setPolicy(d.policy); setSavedAt(Date.now()); setMsg("Saved. The next run uses this policy; sync the filters below to apply routes now."); }
+    if (res.ok) { setData({ ...d, scheduleEnabled: data?.scheduleEnabled ?? false }); setPolicy(d.policy); setSavedAt(Date.now()); setMsg("Saved. The next run uses this policy; sync the filters below to apply routes now."); }
     else setMsg(d.error ?? "Could not save");
     setSaving(false);
   }
@@ -131,7 +131,7 @@ export function PolicyEditor() {
 
       <FiltersCard refreshKey={savedAt} onPolicyChanged={load} />
 
-      <Section title="Aging" hint="Days before the daily run archives, trashes (30-day recovery), or marks read. Uncheck to turn a trash rule off.">
+      <Section title="Aging" hint="Days before a run archives, trashes (30-day recovery), or marks read. Uncheck to turn a trash rule off.">
         <div className="grid gap-2 sm:grid-cols-2">
           <Days label="Archive skip-inbox stragglers after" value={policy.aging.archiveStragglersAfterDays} onChange={(v) => set({ aging: { ...policy.aging, archiveStragglersAfterDays: v ?? 2 } })} />
           <Days label="Trash security codes after" allowOff value={policy.aging.trashSecurityCodesAfterDays} onChange={(v) => set({ aging: { ...policy.aging, trashSecurityCodesAfterDays: v } })} />

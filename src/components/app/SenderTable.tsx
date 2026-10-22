@@ -47,7 +47,7 @@ export function SenderTable({ rows, mode }: { rows: SenderRow[]; mode: "trash" |
     const json = (await res.json()) as { applied?: { runId: string; messages: number } | null; error?: string };
     if (json.error) setMsg(json.error);
     else if (json.applied) { setMsg(`Trashed ${json.applied.messages} from ${domain}.`); if (json.applied.runId) setLastRun(json.applied.runId); }
-    else setMsg(`${domain}: ${decision ?? "cleared"}. The daily run enforces it.`);
+    else setMsg(`${domain}: ${decision ?? "cleared"}. The next run enforces it.`);
     setBusy(null); router.refresh();
   }
   async function fileAs(domain: string, category: string) {

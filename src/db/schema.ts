@@ -72,7 +72,8 @@ export const mailboxes = pgTable("mailboxes", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
   policy: policyJson("policy").notNull(),
-  scheduleEnabled: boolean("schedule_enabled").default(true).notNull(),
+  // The daily apply run is opt-in: off until the owner turns it on (src/lib/mailbox.ts; security audit 2026-10).
+  scheduleEnabled: boolean("schedule_enabled").default(false).notNull(),
   status: text("status").$type<MailboxStatus>().default("active").notNull(),
   labelsReady: boolean("labels_ready").default(false).notNull(),
   // Ids of the Gmail filters Mailroom created and owns; anything else in Gmail is the user's and is left alone.

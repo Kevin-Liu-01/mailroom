@@ -81,7 +81,8 @@ TypeSafe key for Jev.
 4. **Database.** Any Postgres. `pnpm install && pnpm db:push` creates the tables.
 5. **Run.** `pnpm dev`, sign in, add a TypeSafe key if you are not the owner, press Preview.
 6. **Deploy.** `vercel link`, `vercel env add` each variable, `vercel --prod`. The cron in `vercel.json` calls
-   `/api/cron` daily at 13:00 UTC with `Authorization: Bearer $CRON_SECRET`.
+   `/api/cron` daily at 13:00 UTC with `Authorization: Bearer $CRON_SECRET`. It runs only the mailboxes whose owners
+   turned the daily run on; a new mailbox starts with it off.
 
 ## How it is built
 
