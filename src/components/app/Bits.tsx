@@ -150,9 +150,11 @@ const DOMAIN_ALIASES: Record<string, BrandId> = {
 /** The brand mark for a sender domain when we have one. */
 export function brandForDomain(domain: string): BrandId | null {
   const labels = domain.toLowerCase().split(".").filter((l) => l && !["com", "org", "net", "io", "co", "app", "ai", "dev", "so", "me", "us", "uk", "ca", "edu", "gov", "email", "mail", "news", "info", "em", "e", "notifications", "noreply", "no-reply", "hello", "support", "team", "reply"].includes(l));
+  // own keys only: the domain is the sender's to write, and `in` also matches what every object inherits
+  // (`constructor.example.com` picked Object as a brand and its render threw; security audit 2026-10)
   for (const l of labels) {
-    if (l in DOMAIN_ALIASES) return DOMAIN_ALIASES[l];
-    if (l in BRANDS) return l as BrandId;
+    if (Object.hasOwn(DOMAIN_ALIASES, l)) return DOMAIN_ALIASES[l];
+    if (Object.hasOwn(BRANDS, l)) return l as BrandId;
   }
   return null;
 }
