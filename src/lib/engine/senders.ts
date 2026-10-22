@@ -13,10 +13,20 @@ import type { SenderDecision, SenderJudgment } from "@/db/schema";
 
 type Agg = { domain: string; names: Map<string, number>; messages: number; unread: number; inInbox: number; olderThan30: number; first: number; last: number; subjects: string[]; listUnsubscribe?: string };
 
+/** A sender domain as Gmail search reads it: a hostname, nothing a query could take as syntax. */
+export const SENDER_DOMAIN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
+
+/**
+ * The sender's domain and display name from a From header, which anyone can write. The address is the LAST <…> (a
+ * display name may carry one of its own), and only a hostname counts as a domain ("" otherwise): sender decisions put
+ * it straight into Gmail searches (security audit 2026-10, docs/security/2026-10-audit.md).
+ */
 export function domainOf(from: string): { domain: string; name: string } {
-  const email = from.match(/<([^>]+)>/)?.[1] ?? from.trim();
-  const domain = email.split("@")[1]?.toLowerCase().trim() ?? email.toLowerCase();
-  const name = from.replace(/<[^>]+>/, "").replace(/["']/g, "").trim();
+  const last = [...from.matchAll(/<([^<>]*)>/g)].at(-1);
+  const email = last?.[1] ?? from.trim();
+  const host = email.split("@")[1]?.toLowerCase().trim() ?? email.toLowerCase();
+  const domain = SENDER_DOMAIN.test(host) ? host : "";
+  const name = (last ? from.slice(0, last.index) : from).replace(/["']/g, "").trim();
   return { domain, name };
 }
 

@@ -1,4 +1,4 @@
-import { CATEGORY_IDS, LABEL_BY_CATEGORY, type CategoryId, type PolicyConfig } from "./schema";
+import { CATEGORY_IDS, LABEL_BY_CATEGORY, querySafeSender, type CategoryId, type PolicyConfig } from "./schema";
 import { compileRoutes, type CompiledRoute } from "./routes";
 
 export type Rule = {
@@ -22,7 +22,7 @@ function labelsFor(ids: CategoryId[]): string[] {
 
 /** People whose mail no rule archives or trashes: the senders you protect, family, and work. */
 function peopleGuard(policy: PolicyConfig): string {
-  const people = [...new Set([...policy.senders.protected, ...policy.senders.family, ...policy.senders.work])];
+  const people = [...new Set([...policy.senders.protected, ...policy.senders.family, ...policy.senders.work])].filter(querySafeSender);
   return people.length ? ` -from:(${people.join(" OR ")})` : "";
 }
 
@@ -76,7 +76,7 @@ export function buildRules(policy: PolicyConfig): Rule[] {
   read("mark-read-old-updates", "category:updates", a.markReadUpdatesAfterDays, "Unread automated updates stop counting after a month.");
 
   for (const [domain, days] of Object.entries(policy.senders.trashAfterDays)) {
-    if (policy.senders.protected.includes(domain)) continue;
+    if (policy.senders.protected.includes(domain) || !querySafeSender(domain)) continue;
     rules.push({
       id: `trash-sender:${domain}`,
       kind: "trash",
@@ -86,11 +86,12 @@ export function buildRules(policy: PolicyConfig): Rule[] {
       why: `You decided mail from ${domain} is disposable after ${days} days.`,
     });
   }
-  if (policy.senders.heavyPromo.length) {
+  const heavyPromo = policy.senders.heavyPromo.filter(querySafeSender);
+  if (heavyPromo.length) {
     rules.push({
       id: "demote-heavy-promos",
       kind: "importance",
-      query: `from:(${policy.senders.heavyPromo.join(" OR ")}) is:important -in:trash`,
+      query: `from:(${heavyPromo.join(" OR ")}) is:important -in:trash`,
       addLabelIds: [],
       removeLabelIds: ["IMPORTANT"],
       why: "Heavy promotional senders never count as important, so they stop surfacing above real mail.",

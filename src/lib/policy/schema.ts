@@ -111,6 +111,16 @@ export const PolicySchema = z.object({
 
 export type PolicyConfig = z.infer<typeof PolicySchema>;
 
+/**
+ * A stored sender entry that is safe inside a Gmail search (`from:x`, `-from:(a OR b)`): no whitespace, quotes, braces
+ * or parentheses, which Gmail reads as syntax. Entries from mail are hostnames already (src/lib/engine/senders.ts);
+ * this keeps whatever a stored policy holds from widening a trash query or breaking out of the people guard
+ * (security audit 2026-10).
+ */
+export function querySafeSender(entry: string): boolean {
+  return /^[^\s{}()"]+$/.test(entry);
+}
+
 export function defaultPolicy(overrides: Partial<PolicyConfig> = {}): PolicyConfig {
   return PolicySchema.parse({ version: 1, ...overrides });
 }

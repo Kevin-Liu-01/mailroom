@@ -12,7 +12,7 @@
  * Everything here is pure: the same code compiles Gmail filters, explains conflicts in the UI, plans the adoption of
  * hand-made filters, and decides in code which route a message belongs to.
  */
-import { LABEL_BY_CATEGORY, type CategoryId, type PolicyConfig } from "./schema";
+import { LABEL_BY_CATEGORY, querySafeSender, type CategoryId, type PolicyConfig } from "./schema";
 
 export type FileCategory = Exclude<CategoryId, "other">;
 
@@ -240,10 +240,13 @@ export function policyRoutes(policy: PolicyConfig): { route: Route; origin: Rout
   const off = new Set(policy.filing.builtinsOff);
   const out: { route: Route; origin: RouteOrigin; name: string }[] = BUILTIN_ROUTES.filter((b) => !off.has(b.id)).map((b) => ({ route: b, origin: "builtin", name: b.name }));
   for (const r of policy.filing.routes) out.push({ route: r, origin: "custom", name: r.sub ? `${categoryLabel(r.category)}/${r.sub}` : categoryLabel(r.category) });
-  const s = policy.senders;
-  if (s.heavyPromo.length) out.push({ route: { id: "heavy-promo", category: "marketing", from: s.heavyPromo.join(" OR ") }, origin: "senders", name: "Heavy promotional senders" });
-  if (s.work.length) out.push({ route: { id: "work", category: "work", from: s.work.join(" OR ") }, origin: "senders", name: "Work domains" });
-  if (s.family.length) out.push({ route: { id: "family", category: "personal", from: s.family.join(" OR "), star: true }, origin: "senders", name: "Family and friends" });
+  // only entries Gmail cannot read as syntax (querySafeSender): they are joined into one `from:` clause
+  const heavyPromo = policy.senders.heavyPromo.filter(querySafeSender);
+  const work = policy.senders.work.filter(querySafeSender);
+  const family = policy.senders.family.filter(querySafeSender);
+  if (heavyPromo.length) out.push({ route: { id: "heavy-promo", category: "marketing", from: heavyPromo.join(" OR ") }, origin: "senders", name: "Heavy promotional senders" });
+  if (work.length) out.push({ route: { id: "work", category: "work", from: work.join(" OR ") }, origin: "senders", name: "Work domains" });
+  if (family.length) out.push({ route: { id: "family", category: "personal", from: family.join(" OR "), star: true }, origin: "senders", name: "Family and friends" });
   return out;
 }
 

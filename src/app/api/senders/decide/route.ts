@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import { requireUserId } from "@/lib/session";
 import { applyManual } from "@/lib/engine/actions";
 import { gmailFor } from "@/lib/engine/run";
+import { SENDER_DOMAIN } from "@/lib/engine/senders";
 import type { SenderDecision } from "@/db/schema";
 import type { PolicyConfig } from "@/lib/policy/schema";
 
@@ -16,7 +17,9 @@ export async function POST(req: Request) {
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = (await req.json().catch(() => ({}))) as { domain?: string; decision?: SenderDecision; trashAfterDays?: number; applyNow?: boolean };
   if (!body.domain || !DECISIONS.includes(body.decision ?? null)) return NextResponse.json({ error: "domain and decision required" }, { status: 400 });
-  const domain = body.domain.toLowerCase();
+  const domain = body.domain.trim().toLowerCase();
+  // it lands in Gmail searches (`from:${domain}`), so a hostname only (security audit 2026-10)
+  if (!SENDER_DOMAIN.test(domain)) return NextResponse.json({ error: "That does not look like a sender domain" }, { status: 400 });
   const days = Math.min(Math.max(body.trashAfterDays ?? 30, 1), 3650);
   const [mb] = await db.select().from(schema.mailboxes).where(eq(schema.mailboxes.userId, userId)).limit(1);
   if (!mb) return NextResponse.json({ error: "no mailbox" }, { status: 404 });
